@@ -4,6 +4,7 @@ import { v } from "convex/values";
 export default defineSchema({
   // Main game state
   games: defineTable({
+    playerName: v.optional(v.string()),
     personaId: v.string(),
     money: v.number(),
     debt: v.number(),
@@ -69,4 +70,14 @@ export default defineSchema({
   })
     .index("by_game", ["gameId"])
     .index("by_due", ["gameId", "dueWeek", "isPaid"]),
+
+  // Leaderboard for top scores
+  leaderboard: defineTable({
+    playerName: v.string(),
+    personaId: v.string(),
+    score: v.number(), // Final cash money in hand
+    weeksCompleted: v.number(),
+    endingType: v.string(),
+    createdAt: v.number(),
+  }).index("by_score", ["score"]),
 });

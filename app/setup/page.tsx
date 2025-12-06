@@ -2,26 +2,51 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { PERSONAS, PersonaId } from "@/lib/constants";
 import { useMutation } from "convex/react";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { api } from "@/convex/_generated/api";
+
+const PLAYER_NAME_KEY = "b40_player_name";
 
 export default function SetupPage() {
   const router = useRouter();
   const [selectedPersona, setSelectedPersona] = useState<PersonaId | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [playerName, setPlayerName] = useState("");
+  const [showNameInput, setShowNameInput] = useState(true);
   const createGame = useMutation(api.games.createGame);
 
+  // Check localStorage for saved name on mount
+  useEffect(() => {
+    const savedName = localStorage.getItem(PLAYER_NAME_KEY);
+    if (savedName) {
+      setPlayerName(savedName);
+      setShowNameInput(false);
+    }
+  }, []);
+
+  const handleSaveName = () => {
+    if (playerName.trim().length < 2) return;
+    localStorage.setItem(PLAYER_NAME_KEY, playerName.trim());
+    setShowNameInput(false);
+  };
+
+  const handleChangeName = () => {
+    setShowNameInput(true);
+  };
+
   const handleStartGame = async () => {
-    if (!selectedPersona) return;
+    if (!selectedPersona || !playerName.trim()) return;
 
     setIsCreating(true);
     try {
       const persona = PERSONAS[selectedPersona];
       await createGame({
+        playerName: playerName.trim(),
         personaId: selectedPersona,
         initialMoney: persona.initialMoney,
         initialDebt: persona.initialDebt,
@@ -42,11 +67,70 @@ export default function SetupPage() {
           animate={{ opacity: 1, y: 0 }}
           className="text-center mb-8"
         >
-          <h1 className="text-3xl font-bold text-white mb-2">Choose Your Story</h1>
-          <p className="text-slate-400">Each path has its own challenges</p>
+          <h1 className="text-3xl font-bold text-white mb-2">B40 Life Simulator</h1>
+          <p className="text-slate-400">Experience financial decisions through lived experience</p>
         </motion.div>
 
-        <div className="grid md:grid-cols-3 gap-6 mb-8">
+        {/* Player Name Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="mb-8"
+        >
+          {showNameInput ? (
+            <Card className="bg-slate-800/50 border-slate-700 max-w-md mx-auto">
+              <CardHeader>
+                <CardTitle className="text-white text-lg">Enter Your Name</CardTitle>
+                <CardDescription className="text-slate-400">
+                  This will be shown on the leaderboard
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Input
+                  placeholder="Your name"
+                  value={playerName}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPlayerName(e.target.value)}
+                  className="bg-slate-900 border-slate-600 text-white"
+                  maxLength={20}
+                  onKeyDown={(e: React.KeyboardEvent) => e.key === "Enter" && handleSaveName()}
+                />
+                <Button
+                  onClick={handleSaveName}
+                  disabled={playerName.trim().length < 2}
+                  className="w-full bg-emerald-600 hover:bg-emerald-700"
+                >
+                  Continue
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="text-center">
+              <p className="text-slate-400 mb-2">
+                Playing as <span className="text-emerald-400 font-bold">{playerName}</span>
+              </p>
+              <button
+                onClick={handleChangeName}
+                className="text-xs text-slate-500 hover:text-slate-300 underline"
+              >
+                Change name
+              </button>
+            </div>
+          )}
+        </motion.div>
+
+        {!showNameInput && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-center mb-6"
+            >
+              <h2 className="text-xl font-bold text-white">Choose Your Story</h2>
+              <p className="text-slate-400 text-sm">Each path has its own challenges</p>
+            </motion.div>
+
+            <div className="grid md:grid-cols-2 gap-6 mb-8 max-w-2xl mx-auto">
           {(Object.entries(PERSONAS) as [PersonaId, typeof PERSONAS[PersonaId]][]).map(
             ([id, persona], index) => (
               <motion.div
@@ -113,23 +197,25 @@ export default function SetupPage() {
               </motion.div>
             )
           )}
-        </div>
+            </div>
 
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.4 }}
-          className="text-center"
-        >
-          <Button
-            size="lg"
-            className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50"
-            disabled={!selectedPersona || isCreating}
-            onClick={handleStartGame}
-          >
-            {isCreating ? "Starting..." : "Begin Your Journey"}
-          </Button>
-        </motion.div>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.4 }}
+              className="text-center"
+            >
+              <Button
+                size="lg"
+                className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50"
+                disabled={!selectedPersona || isCreating}
+                onClick={handleStartGame}
+              >
+                {isCreating ? "Starting..." : "Begin Your Journey"}
+              </Button>
+            </motion.div>
+          </>
+        )}
       </div>
     </main>
   );

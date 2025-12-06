@@ -25,6 +25,7 @@ export const getGame = query({
 // Create a new game with selected persona
 export const createGame = mutation({
   args: {
+    playerName: v.string(),
     personaId: v.string(),
     initialMoney: v.number(),
     initialDebt: v.number(),
@@ -32,6 +33,7 @@ export const createGame = mutation({
   },
   handler: async (ctx, args) => {
     const gameId = await ctx.db.insert("games", {
+      playerName: args.playerName,
       personaId: args.personaId,
       money: args.initialMoney,
       debt: args.initialDebt,
@@ -62,6 +64,43 @@ export const createGame = mutation({
       amount: 80,
       dueDay: 7,
       dueWeek: 2,
+      isPaid: false,
+      isOverdue: false,
+    });
+
+    // Schedule monthly debt payments (every 4 weeks)
+    // Calculate monthly payment as debt / 12 (spread over a year)
+    const monthlyDebtPayment = Math.ceil(args.initialDebt / 12);
+
+    // Month 1 - Week 4
+    await ctx.db.insert("bills", {
+      gameId,
+      type: "debt",
+      amount: monthlyDebtPayment,
+      dueDay: 7,
+      dueWeek: 4,
+      isPaid: false,
+      isOverdue: false,
+    });
+
+    // Month 2 - Week 8
+    await ctx.db.insert("bills", {
+      gameId,
+      type: "debt",
+      amount: monthlyDebtPayment,
+      dueDay: 7,
+      dueWeek: 8,
+      isPaid: false,
+      isOverdue: false,
+    });
+
+    // Month 3 - Week 12
+    await ctx.db.insert("bills", {
+      gameId,
+      type: "debt",
+      amount: monthlyDebtPayment,
+      dueDay: 7,
+      dueWeek: 12,
       isPaid: false,
       isOverdue: false,
     });
@@ -170,6 +209,7 @@ export const advanceTime = mutation({
       currentDay: newDay,
       currentWeek: newWeek,
       actionsRemaining: 3,
+      currentLocation: "home",
       isGameOver,
       endingType,
     });

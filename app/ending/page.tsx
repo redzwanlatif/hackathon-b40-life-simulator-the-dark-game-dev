@@ -1,13 +1,13 @@
 "use client";
 
-import { useQuery, useAction } from "convex/react";
+import { useQuery, useAction, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { motion } from "framer-motion";
-import { Loader2 } from "lucide-react";
+import { Loader2, Trophy } from "lucide-react";
 
 interface Ending {
   title: string;
@@ -28,9 +28,30 @@ export default function EndingPage() {
     game ? { gameId: game._id } : "skip"
   );
   const generateEnding = useAction(api.ai.generateEnding);
+  const submitScore = useMutation(api.leaderboard.submitScore);
+  const isTopScore = useQuery(
+    api.leaderboard.checkIfTopScore,
+    game ? { score: game.money } : "skip"
+  );
 
   const [ending, setEnding] = useState<Ending | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [scoreSubmitted, setScoreSubmitted] = useState(false);
+
+  // Submit score to leaderboard when game ends
+  useEffect(() => {
+    if (game?.isGameOver && !scoreSubmitted && game.playerName) {
+      submitScore({
+        playerName: game.playerName,
+        personaId: game.personaId,
+        score: game.money,
+        weeksCompleted: game.currentWeek,
+        endingType: game.endingType || "completed",
+      })
+        .then(() => setScoreSubmitted(true))
+        .catch(console.error);
+    }
+  }, [game, scoreSubmitted, submitScore]);
 
   useEffect(() => {
     if (game === null) {
@@ -171,6 +192,24 @@ export default function EndingPage() {
           </Card>
         </motion.div>
 
+        {/* Leaderboard Status */}
+        {isTopScore && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.8 }}
+            className="text-center"
+          >
+            <Card className="bg-gradient-to-r from-yellow-600/20 to-amber-600/20 border-yellow-500/50">
+              <CardContent className="py-4 flex items-center justify-center gap-3">
+                <Trophy className="h-6 w-6 text-yellow-400" />
+                <span className="text-yellow-400 font-bold">You made it to the Top 10!</span>
+                <Trophy className="h-6 w-6 text-yellow-400" />
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -179,13 +218,23 @@ export default function EndingPage() {
         >
           <p className="text-slate-400 italic mb-6">{ending.epilogue}</p>
 
-          <Button
-            size="lg"
-            className="bg-emerald-600 hover:bg-emerald-700"
-            onClick={() => router.push("/")}
-          >
-            Play Again
-          </Button>
+          <div className="flex gap-4 justify-center">
+            <Button
+              size="lg"
+              variant="outline"
+              className="border-emerald-600 text-emerald-400 hover:bg-emerald-600/20"
+              onClick={() => router.push("/leaderboard")}
+            >
+              View Leaderboard
+            </Button>
+            <Button
+              size="lg"
+              className="bg-emerald-600 hover:bg-emerald-700"
+              onClick={() => router.push("/")}
+            >
+              Play Again
+            </Button>
+          </div>
         </motion.div>
       </div>
     </main>

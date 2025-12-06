@@ -1,27 +1,7 @@
 "use client";
 
+import { useState, useMemo } from "react";
 import { LocationId, MapConfig, PERSONA_MAPS, KL_MAP, Location } from "@/lib/constants";
-import { motion } from "framer-motion";
-import { useState, useEffect, useMemo } from "react";
-
-// Pre-computed particle positions to avoid hydration mismatch
-const floatingParticles = [
-  { x: 10, y: 20, duration: 3, delay: 0 },
-  { x: 25, y: 45, duration: 3.5, delay: 0.5 },
-  { x: 40, y: 15, duration: 2.8, delay: 1 },
-  { x: 55, y: 70, duration: 4, delay: 0.3 },
-  { x: 70, y: 35, duration: 3.2, delay: 1.5 },
-  { x: 85, y: 60, duration: 3.8, delay: 0.8 },
-  { x: 15, y: 80, duration: 2.5, delay: 1.2 },
-  { x: 30, y: 55, duration: 3.3, delay: 0.2 },
-  { x: 60, y: 25, duration: 4.2, delay: 0.7 },
-  { x: 80, y: 85, duration: 2.9, delay: 1.8 },
-  { x: 45, y: 40, duration: 3.6, delay: 0.4 },
-  { x: 90, y: 30, duration: 3.1, delay: 1.1 },
-  { x: 20, y: 65, duration: 3.7, delay: 0.6 },
-  { x: 75, y: 50, duration: 2.7, delay: 1.4 },
-  { x: 50, y: 90, duration: 3.4, delay: 0.9 },
-];
 
 interface GameMapProps {
   currentLocation: LocationId;
@@ -30,25 +10,20 @@ interface GameMapProps {
   personaId?: string;
 }
 
-const locationColors: Record<LocationId, { bg: string; glow: string; border: string }> = {
-  home: { bg: "from-blue-600 to-blue-800", glow: "#3b82f6", border: "border-blue-400" },
-  shop: { bg: "from-amber-500 to-orange-600", glow: "#f59e0b", border: "border-amber-400" },
-  petrol: { bg: "from-red-500 to-red-700", glow: "#ef4444", border: "border-red-400" },
-  tnb: { bg: "from-yellow-400 to-yellow-600", glow: "#facc15", border: "border-yellow-400" },
-  office: { bg: "from-slate-500 to-slate-700", glow: "#64748b", border: "border-slate-400" },
-  bank: { bg: "from-emerald-500 to-emerald-700", glow: "#10b981", border: "border-emerald-400" },
-  bus: { bg: "from-purple-500 to-purple-700", glow: "#a855f7", border: "border-purple-400" },
+// Location sprite colors (real-world branding)
+const locationSprites: Record<LocationId, { bg: string; border: string; shadow: string }> = {
+  home: { bg: "#5a7a9a", border: "#3d5a7a", shadow: "#2a4060" },      // Apartment blue-gray
+  shop: { bg: "#ff6b00", border: "#cc5500", shadow: "#993f00" },      // 7-Eleven orange
+  petrol: { bg: "#00a19c", border: "#007a76", shadow: "#005550" },    // Petronas teal/green
+  tnb: { bg: "#e31837", border: "#b3122a", shadow: "#800d1e" },       // TNB red
+  office: { bg: "#4a5568", border: "#2d3748", shadow: "#1a202c" },    // Corporate gray
+  bank: { bg: "#ffc220", border: "#d4a017", shadow: "#a67c00" },      // Maybank yellow
+  bus: { bg: "#1e40af", border: "#1e3a8a", shadow: "#172554" },       // RapidKL blue
 };
 
 export function GameMap({ currentLocation, onLocationClick, disabled, personaId }: GameMapProps) {
   const [hoveredLocation, setHoveredLocation] = useState<LocationId | null>(null);
-  const [mounted, setMounted] = useState(false);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  // Get the correct map based on persona
   const mapConfig: MapConfig = useMemo(() => {
     if (personaId && PERSONA_MAPS[personaId]) {
       return PERSONA_MAPS[personaId];
@@ -57,387 +32,361 @@ export function GameMap({ currentLocation, onLocationClick, disabled, personaId 
   }, [personaId]);
 
   const { locations, theme, landmarks } = mapConfig;
-
-  // Render road based on style
-  const renderRoads = () => {
-    switch (theme.roadStyle) {
-      case "modern":
-        // KL - Modern grid roads with multiple lanes
-        return (
-          <>
-            {/* Main horizontal highway */}
-            <motion.div
-              className="absolute top-1/2 left-0 right-0 h-10 bg-gradient-to-r from-slate-700 via-slate-600 to-slate-700"
-              style={{ transform: "translateY(-50%)" }}
-            >
-              <motion.div
-                className="absolute inset-0 flex items-center justify-around"
-                animate={{ x: [0, -40] }}
-                transition={{ repeat: Infinity, duration: 0.8, ease: "linear" }}
-              >
-                {[...Array(25)].map((_, i) => (
-                  <div key={i} className="w-10 h-1 bg-yellow-400/60" />
-                ))}
-              </motion.div>
-              {/* Double lane lines */}
-              <div className="absolute top-1 left-0 right-0 h-0.5 bg-white/20" />
-              <div className="absolute bottom-1 left-0 right-0 h-0.5 bg-white/20" />
-            </motion.div>
-
-            {/* Vertical road */}
-            <div
-              className="absolute top-0 bottom-0 left-1/2 w-10 bg-gradient-to-b from-slate-700 via-slate-600 to-slate-700"
-              style={{ transform: "translateX(-50%)" }}
-            >
-              <div className="absolute inset-0 flex flex-col items-center justify-around">
-                {[...Array(18)].map((_, i) => (
-                  <div key={i} className="w-1 h-8 bg-yellow-400/60" />
-                ))}
-              </div>
-            </div>
-
-            {/* Secondary road */}
-            <div className="absolute top-0 bottom-0 left-[25%] w-6 bg-gradient-to-b from-slate-800 via-slate-700 to-slate-800 opacity-60">
-              <div className="absolute inset-0 flex flex-col items-center justify-around">
-                {[...Array(20)].map((_, i) => (
-                  <div key={i} className="w-0.5 h-4 bg-white/30" />
-                ))}
-              </div>
-            </div>
-          </>
-        );
-
-      case "heritage":
-        // Penang - Narrow winding streets with old-style markings
-        return (
-          <>
-            {/* Main coastal road - curved feel */}
-            <svg className="absolute inset-0 w-full h-full" style={{ opacity: 0.8 }}>
-              <path
-                d="M 0 60% Q 30% 50%, 50% 55% T 100% 45%"
-                stroke="#475569"
-                strokeWidth="24"
-                fill="none"
-              />
-              <path
-                d="M 0 60% Q 30% 50%, 50% 55% T 100% 45%"
-                stroke="#fbbf24"
-                strokeWidth="1"
-                strokeDasharray="8 12"
-                fill="none"
-                opacity="0.4"
-              />
-            </svg>
-
-            {/* Narrow heritage street */}
-            <div
-              className="absolute top-[20%] bottom-[40%] left-[30%] w-5 bg-gradient-to-b from-slate-700 via-stone-600 to-slate-700"
-              style={{ transform: "rotate(-10deg)" }}
-            >
-              <div className="absolute inset-0 flex flex-col items-center justify-around">
-                {[...Array(12)].map((_, i) => (
-                  <div key={i} className="w-0.5 h-3 bg-amber-400/40" />
-                ))}
-              </div>
-            </div>
-
-            {/* Cobblestone texture overlay */}
-            <div
-              className="absolute inset-0 opacity-5"
-              style={{
-                backgroundImage: `radial-gradient(circle, #fbbf24 1px, transparent 1px)`,
-                backgroundSize: "12px 12px",
-              }}
-            />
-          </>
-        );
-
-      case "industrial":
-        // JB - Wide industrial roads with truck lanes
-        return (
-          <>
-            {/* Main industrial highway - wider */}
-            <motion.div
-              className="absolute top-[45%] left-0 right-0 h-14 bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800"
-            >
-              <motion.div
-                className="absolute inset-0 flex items-center justify-around"
-                animate={{ x: [0, -60] }}
-                transition={{ repeat: Infinity, duration: 1.2, ease: "linear" }}
-              >
-                {[...Array(20)].map((_, i) => (
-                  <div key={i} className="w-12 h-1.5 bg-orange-400/50" />
-                ))}
-              </motion.div>
-              {/* Heavy vehicle lanes */}
-              <div className="absolute top-2 left-0 right-0 h-0.5 bg-orange-500/30" />
-              <div className="absolute bottom-2 left-0 right-0 h-0.5 bg-orange-500/30" />
-            </motion.div>
-
-            {/* Road to factory */}
-            <div
-              className="absolute top-0 right-[20%] bottom-[55%] w-8 bg-gradient-to-b from-slate-700 to-slate-800"
-            >
-              <div className="absolute inset-0 flex flex-col items-center justify-around">
-                {[...Array(10)].map((_, i) => (
-                  <div key={i} className="w-1 h-6 bg-orange-400/40" />
-                ))}
-              </div>
-            </div>
-
-            {/* Road to CIQ/Singapore border */}
-            <div className="absolute bottom-0 right-[15%] top-[55%] w-10 bg-gradient-to-b from-slate-700 to-slate-600">
-              <div className="absolute inset-0 flex flex-col items-center justify-around">
-                {[...Array(8)].map((_, i) => (
-                  <div key={i} className="w-1 h-5 bg-white/30" />
-                ))}
-              </div>
-              {/* Border crossing indicator */}
-              <motion.div
-                className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full h-2 bg-orange-500/50"
-                animate={{ opacity: [0.3, 0.7, 0.3] }}
-                transition={{ repeat: Infinity, duration: 2 }}
-              />
-            </div>
-          </>
-        );
-
-      default:
-        return null;
-    }
-  };
+  const isCity = theme.roadStyle === "city";
 
   return (
-    <div className="relative w-full h-[450px] rounded-xl overflow-hidden border-2" style={{ borderColor: `${theme.primaryColor}30` }}>
-      {/* Animated background with theme-specific gradient */}
-      <div className={`absolute inset-0 bg-gradient-to-b ${theme.bgGradient}`}>
-        {/* Grid pattern with theme color */}
+    <div
+      className="relative w-full h-[450px] overflow-hidden border-4 select-none"
+      style={{
+        borderColor: isCity ? "#1a1a2e" : "#2d5a4a",
+        imageRendering: "pixelated",
+      }}
+    >
+      {/* Background - City or Island */}
+      {isCity ? (
+        // CITY BACKGROUND - Concrete jungle
+        <div className="absolute inset-0 bg-gradient-to-b from-slate-800 via-slate-700 to-slate-600">
+          {/* City grid pattern */}
+          <div
+            className="absolute inset-0"
+            style={{
+              backgroundImage: `
+                linear-gradient(to right, rgba(100,100,120,0.3) 2px, transparent 2px),
+                linear-gradient(to bottom, rgba(100,100,120,0.3) 2px, transparent 2px)
+              `,
+              backgroundSize: "32px 32px",
+            }}
+          />
+        </div>
+      ) : (
+        // ISLAND BACKGROUND - Tropical paradise
+        <div className="absolute inset-0">
+          {/* Ocean gradient */}
+          <div className="absolute inset-0 bg-gradient-to-b from-cyan-400 via-cyan-500 to-blue-600" />
+
+          {/* Waves pattern */}
+          <div
+            className="absolute inset-0 opacity-30"
+            style={{
+              backgroundImage: `
+                repeating-linear-gradient(
+                  0deg,
+                  transparent,
+                  transparent 20px,
+                  rgba(255,255,255,0.3) 20px,
+                  rgba(255,255,255,0.3) 22px
+                )
+              `,
+            }}
+          />
+
+          {/* Island land mass - left side */}
+          <div
+            className="absolute left-0 top-0 bottom-0 w-[70%]"
+            style={{
+              background: "linear-gradient(135deg, #4a7c59 0%, #3d6b4f 50%, #2d5a3f 100%)",
+              clipPath: "polygon(0 0, 85% 0, 100% 30%, 95% 50%, 100% 70%, 80% 100%, 0 100%)",
+              boxShadow: "inset -10px 0 30px rgba(0,0,0,0.2)",
+            }}
+          >
+            {/* Grass texture */}
+            <div
+              className="absolute inset-0 opacity-20"
+              style={{
+                backgroundImage: `
+                  radial-gradient(circle at 2px 2px, #2d5a3f 1px, transparent 1px)
+                `,
+                backgroundSize: "8px 8px",
+              }}
+            />
+          </div>
+
+        </div>
+      )}
+
+      {/* Roads - 2 horizontal + 2 vertical centered grid */}
+      <svg className="absolute inset-0 w-full h-full pointer-events-none">
+        {isCity ? (
+          // CITY ROADS - Clean centered grid
+          <>
+            {/* Horizontal road - upper */}
+            <rect x="0" y="30%" width="100%" height="24" fill="#3a3a4a" />
+            <line x1="0" y1="calc(30% + 12px)" x2="100%" y2="calc(30% + 12px)" stroke="#fff" strokeWidth="2" strokeDasharray="18 10" opacity="0.6" />
+
+            {/* Horizontal road - lower */}
+            <rect x="0" y="60%" width="100%" height="24" fill="#3a3a4a" />
+            <line x1="0" y1="calc(60% + 12px)" x2="100%" y2="calc(60% + 12px)" stroke="#fff" strokeWidth="2" strokeDasharray="18 10" opacity="0.6" />
+
+            {/* Vertical road - left */}
+            <rect x="30%" y="0" width="24" height="100%" fill="#3a3a4a" />
+            <line x1="calc(30% + 12px)" y1="0" x2="calc(30% + 12px)" y2="100%" stroke="#fff" strokeWidth="2" strokeDasharray="18 10" opacity="0.6" />
+
+            {/* Vertical road - right */}
+            <rect x="65%" y="0" width="24" height="100%" fill="#3a3a4a" />
+            <line x1="calc(65% + 12px)" y1="0" x2="calc(65% + 12px)" y2="100%" stroke="#fff" strokeWidth="2" strokeDasharray="18 10" opacity="0.6" />
+          </>
+        ) : (
+          // ISLAND ROADS - 2 horizontal + 2 vertical sandy paths
+          <>
+            {/* Horizontal path - upper */}
+            <rect x="5%" y="32%" width="60%" height="14" fill="#c4a76c" rx="4" opacity="0.9" />
+
+            {/* Horizontal path - lower */}
+            <rect x="10%" y="62%" width="55%" height="14" fill="#c4a76c" rx="4" opacity="0.9" />
+
+            {/* Vertical path - left */}
+            <rect x="25%" y="10%" width="14" height="80%" fill="#c4a76c" rx="4" opacity="0.9" />
+
+            {/* Vertical path - right */}
+            <rect x="55%" y="15%" width="14" height="70%" fill="#c4a76c" rx="4" opacity="0.9" />
+          </>
+        )}
+      </svg>
+
+      {/* Decorative elements */}
+      {isCity ? (
+        // City decorations - cars on roads
+        <>
+          {/* Cars on upper horizontal road (y:30%) */}
+          {[15, 55, 80].map((x, i) => (
+            <div
+              key={`car-h1-${i}`}
+              className="absolute text-base"
+              style={{
+                left: `${x}%`,
+                top: "29%",
+                filter: "drop-shadow(1px 2px 1px rgba(0,0,0,0.5))",
+              }}
+            >
+              🚗
+            </div>
+          ))}
+          {/* Cars on lower horizontal road (y:60%) */}
+          {[20, 50, 75].map((x, i) => (
+            <div
+              key={`car-h2-${i}`}
+              className="absolute text-base"
+              style={{
+                left: `${x}%`,
+                top: "59%",
+                filter: "drop-shadow(1px 2px 1px rgba(0,0,0,0.5))",
+              }}
+            >
+              🚙
+            </div>
+          ))}
+        </>
+      ) : (
+        // Island decorations - palm trees, boats
+        <>
+          {[{ x: 5, y: 25 }, { x: 8, y: 70 }, { x: 55, y: 15 }, { x: 52, y: 75 }].map((pos, i) => (
+            <div
+              key={i}
+              className="absolute text-2xl"
+              style={{
+                left: `${pos.x}%`,
+                top: `${pos.y}%`,
+                transform: "translate(-50%, -50%)",
+                filter: "drop-shadow(2px 2px 1px rgba(0,0,0,0.3))",
+              }}
+            >
+              🌴
+            </div>
+          ))}
+          {[{ x: 88, y: 35 }, { x: 92, y: 60 }].map((pos, i) => (
+            <div
+              key={i}
+              className="absolute text-xl"
+              style={{
+                left: `${pos.x}%`,
+                top: `${pos.y}%`,
+                transform: "translate(-50%, -50%)",
+              }}
+            >
+              ⛵
+            </div>
+          ))}
+        </>
+      )}
+
+      {/* Landmarks */}
+      {landmarks.map((landmark, i) => (
         <div
-          className="absolute inset-0 opacity-20"
-          style={{
-            backgroundImage: `
-              linear-gradient(${theme.gridColor} 1px, transparent 1px),
-              linear-gradient(90deg, ${theme.gridColor} 1px, transparent 1px)
-            `,
-            backgroundSize: "40px 40px",
-          }}
-        />
-
-        {/* Region-specific roads */}
-        {renderRoads()}
-      </div>
-
-      {/* Floating particles - themed color */}
-      {mounted && floatingParticles.map((p, i) => (
-        <motion.div
           key={i}
-          className="absolute w-1 h-1 rounded-full"
+          className="absolute flex flex-col items-center pointer-events-none"
           style={{
-            left: `${p.x}%`,
-            top: `${p.y}%`,
-            backgroundColor: `${theme.primaryColor}50`,
+            left: `${landmark.x}%`,
+            top: `${landmark.y}%`,
+            transform: "translate(-50%, -50%)",
+            opacity: landmark.size === "lg" ? 0.9 : landmark.size === "md" ? 0.7 : 0.5,
           }}
-          animate={{
-            y: [0, -20, 0],
-            opacity: [0.2, 0.8, 0.2],
-          }}
-          transition={{
-            repeat: Infinity,
-            duration: p.duration,
-            delay: p.delay,
-          }}
-        />
+        >
+          <span
+            className={landmark.size === "lg" ? "text-3xl" : landmark.size === "md" ? "text-2xl" : "text-xl"}
+            style={{
+              filter: "drop-shadow(2px 2px 1px rgba(0,0,0,0.5))",
+            }}
+          >
+            {landmark.icon}
+          </span>
+          <span
+            className="text-[7px] font-bold mt-0.5 px-1 py-0.5 rounded"
+            style={{
+              fontFamily: "var(--font-pixel), monospace",
+              backgroundColor: isCity ? "rgba(0,0,0,0.7)" : "rgba(0,50,30,0.7)",
+              color: isCity ? "#00d4ff" : "#90EE90",
+              textShadow: "1px 1px 0 #000",
+            }}
+          >
+            {landmark.name}
+          </span>
+        </div>
       ))}
 
-      {/* Landmarks - decorative background elements */}
-      {landmarks.map((landmark, i) => {
-        const sizes = { sm: "text-lg", md: "text-2xl", lg: "text-4xl" };
-        const opacities = { sm: "opacity-30", md: "opacity-40", lg: "opacity-50" };
+      {/* Location markers - Pokemon building style */}
+      {(Object.entries(locations) as [LocationId, Location][]).map(([id, location]) => {
+        const isCurrentLocation = currentLocation === id;
+        const isHovered = hoveredLocation === id;
+        const sprite = locationSprites[id];
 
         return (
-          <motion.div
-            key={i}
-            className={`absolute ${sizes[landmark.size]} ${opacities[landmark.size]} pointer-events-none select-none`}
-            style={{
-              left: `${landmark.x}%`,
-              top: `${landmark.y}%`,
-              transform: "translate(-50%, -50%)",
-            }}
-            initial={{ opacity: 0, scale: 0.5 }}
-            animate={{
-              opacity: landmark.size === "lg" ? 0.5 : landmark.size === "md" ? 0.4 : 0.3,
-              scale: 1,
-            }}
-            transition={{ delay: i * 0.1, duration: 0.5 }}
+          <button
+            key={id}
+            className={`absolute transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center transition-transform duration-150 ${
+              disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"
+            } ${isHovered && !disabled ? "scale-110 -translate-y-[52%]" : ""}`}
+            style={{ left: `${location.x}%`, top: `${location.y}%`, zIndex: isCurrentLocation ? 20 : 10 }}
+            onClick={() => !disabled && onLocationClick(id)}
+            onMouseEnter={() => setHoveredLocation(id)}
+            onMouseLeave={() => setHoveredLocation(null)}
+            disabled={disabled}
           >
-            <div className="relative">
-              <span className="filter drop-shadow-lg">{landmark.icon}</span>
-              <span
-                className="absolute -bottom-4 left-1/2 -translate-x-1/2 text-[8px] whitespace-nowrap font-bold tracking-wider"
-                style={{ color: `${theme.primaryColor}80` }}
-              >
-                {landmark.name}
+            {/* Building shadow */}
+            <div
+              className="absolute -bottom-1 w-12 h-2 rounded-full"
+              style={{ backgroundColor: "rgba(0,0,0,0.4)", filter: "blur(2px)" }}
+            />
+
+            {/* Pokemon-style building */}
+            <div
+              className="relative px-1 pt-1 pb-1.5 border-[3px] flex flex-col items-center"
+              style={{
+                backgroundColor: sprite.bg,
+                borderColor: sprite.border,
+                boxShadow: `
+                  inset -3px -3px 0 ${sprite.shadow},
+                  inset 3px 3px 0 rgba(255,255,255,0.25),
+                  3px 3px 0 rgba(0,0,0,0.4)
+                `,
+              }}
+            >
+              {/* Roof */}
+              <div
+                className="absolute -top-2.5 left-1/2 -translate-x-1/2 w-14 h-2.5"
+                style={{
+                  backgroundColor: sprite.border,
+                  clipPath: "polygon(15% 100%, 50% 0%, 85% 100%)",
+                  boxShadow: "inset 0 -2px 0 " + sprite.shadow,
+                }}
+              />
+              <span className="text-xl" style={{ filter: "drop-shadow(1px 1px 0 rgba(0,0,0,0.4))" }}>
+                {location.icon}
               </span>
             </div>
-          </motion.div>
-        );
-      })}
 
-      {/* Location markers */}
-      {(Object.entries(locations) as [LocationId, Location][]).map(
-        ([id, location]) => {
-          const isCurrentLocation = currentLocation === id;
-          const isHovered = hoveredLocation === id;
-          const colors = locationColors[id];
-
-          return (
-            <motion.button
-              key={id}
-              className={`absolute transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-1 transition-all z-10 ${
-                disabled ? "cursor-not-allowed" : "cursor-pointer"
-              }`}
+            {/* Name plate */}
+            <div
+              className="mt-1.5 px-1.5 py-0.5 border-2 text-center"
               style={{
-                left: `${location.x}%`,
-                top: `${location.y}%`,
+                backgroundColor: isCurrentLocation ? "#fff" : "#1a1a2e",
+                borderColor: isCurrentLocation ? "#ffd700" : "#3d3d5c",
+                boxShadow: isCurrentLocation
+                  ? "0 0 0 1px #1a1a2e, inset 0 0 0 1px #ffd700"
+                  : "2px 2px 0 rgba(0,0,0,0.4)",
+                minWidth: "50px",
               }}
-              onClick={() => !disabled && onLocationClick(id)}
-              onHoverStart={() => setHoveredLocation(id)}
-              onHoverEnd={() => setHoveredLocation(null)}
-              whileHover={!disabled ? { scale: 1.15 } : undefined}
-              whileTap={!disabled ? { scale: 0.95 } : undefined}
-              disabled={disabled}
             >
-              {/* Pulse ring for current location */}
-              {isCurrentLocation && (
-                <>
-                  <motion.div
-                    className="absolute inset-0 rounded-xl"
-                    style={{ backgroundColor: colors.glow }}
-                    animate={{ scale: [1, 1.5, 1], opacity: [0.5, 0, 0.5] }}
-                    transition={{ repeat: Infinity, duration: 2 }}
-                  />
-                  <motion.div
-                    className="absolute inset-0 rounded-xl"
-                    style={{ backgroundColor: colors.glow }}
-                    animate={{ scale: [1, 2, 1], opacity: [0.3, 0, 0.3] }}
-                    transition={{ repeat: Infinity, duration: 2, delay: 0.5 }}
-                  />
-                </>
-              )}
-
-              {/* Location card */}
-              <motion.div
-                className={`relative px-3 py-2 rounded-xl border-2 ${colors.border} bg-gradient-to-br ${colors.bg}`}
+              <span
+                className="text-[7px] font-bold uppercase"
                 style={{
-                  boxShadow: isCurrentLocation || isHovered
-                    ? `0 0 20px ${colors.glow}, 0 0 40px ${colors.glow}44, inset 0 0 20px rgba(255,255,255,0.1)`
-                    : `0 0 10px ${colors.glow}44`,
-                }}
-                animate={isCurrentLocation ? {
-                  y: [0, -5, 0],
-                } : {}}
-                transition={{ repeat: Infinity, duration: 2 }}
-              >
-                <motion.span
-                  className="text-3xl block"
-                  animate={isHovered ? { rotate: [0, -10, 10, 0], scale: [1, 1.2, 1] } : {}}
-                  transition={{ duration: 0.5 }}
-                >
-                  {location.icon}
-                </motion.span>
-              </motion.div>
-
-              {/* Location name */}
-              <motion.span
-                className={`text-xs font-bold whitespace-nowrap px-2 py-0.5 rounded-full ${
-                  isCurrentLocation
-                    ? "bg-white text-slate-900"
-                    : "bg-slate-800/90 text-white"
-                }`}
-                style={{
-                  textShadow: isCurrentLocation ? "none" : `0 0 10px ${colors.glow}`,
+                  fontFamily: "var(--font-pixel), monospace",
+                  color: isCurrentLocation ? "#1a1a2e" : "#fff",
+                  textShadow: isCurrentLocation ? "none" : "1px 1px 0 #000",
                 }}
               >
                 {location.name}
-              </motion.span>
+              </span>
+            </div>
 
-              {/* "YOU ARE HERE" indicator */}
-              {isCurrentLocation && (
-                <motion.div
-                  className="absolute -bottom-6 left-1/2 -translate-x-1/2"
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
+            {/* Player indicator */}
+            {isCurrentLocation && (
+              <div className="absolute -top-7 left-1/2 -translate-x-1/2 animate-bounce">
+                <div
+                  className="px-1.5 py-0.5 border-2 bg-red-500 border-red-700"
+                  style={{ boxShadow: "2px 2px 0 rgba(0,0,0,0.4), inset -2px -2px 0 #a00" }}
                 >
-                  <span
-                    className="text-[10px] font-bold bg-slate-900/90 px-2 py-0.5 rounded animate-pulse"
-                    style={{ color: theme.primaryColor }}
-                  >
-                    HERE
+                  <span className="text-[5px] text-white font-bold" style={{ fontFamily: "var(--font-pixel), monospace" }}>
+                    YOU
                   </span>
-                </motion.div>
-              )}
-            </motion.button>
-          );
-        }
-      )}
+                </div>
+                <div
+                  className="w-0 h-0 mx-auto"
+                  style={{
+                    borderLeft: "5px solid transparent",
+                    borderRight: "5px solid transparent",
+                    borderTop: "5px solid #991b1b",
+                  }}
+                />
+              </div>
+            )}
+          </button>
+        );
+      })}
 
-      {/* Player trail/glow at current location */}
-      <motion.div
-        className="absolute w-6 h-6 rounded-full pointer-events-none"
-        style={{
-          left: `${locations[currentLocation].x}%`,
-          top: `${locations[currentLocation].y}%`,
-          background: `radial-gradient(circle, ${theme.primaryColor} 0%, transparent 70%)`,
-          filter: "blur(8px)",
-        }}
-        animate={{
-          scale: [1, 1.5, 1],
-          opacity: [0.8, 0.4, 0.8],
-        }}
-        transition={{ repeat: Infinity, duration: 2 }}
-      />
-
-      {/* Region name badge */}
-      <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20">
-        <motion.div
-          className="px-4 py-1 rounded-full border backdrop-blur-sm"
+      {/* Region name sign */}
+      <div className="absolute top-2 left-2 z-30">
+        <div
+          className="px-3 py-1.5 border-[3px]"
           style={{
-            backgroundColor: `${theme.primaryColor}15`,
-            borderColor: `${theme.primaryColor}40`,
+            backgroundColor: isCity ? "#1a1a2e" : "#2d5a3f",
+            borderColor: isCity ? "#4a4a6a" : "#4a7c59",
+            boxShadow: "3px 3px 0 rgba(0,0,0,0.3), inset -2px -2px 0 rgba(0,0,0,0.2), inset 2px 2px 0 rgba(255,255,255,0.1)",
           }}
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
         >
           <span
-            className="text-sm font-bold tracking-wider"
-            style={{ color: theme.primaryColor }}
+            className="text-[10px] font-bold uppercase tracking-wider"
+            style={{
+              fontFamily: "var(--font-pixel), monospace",
+              color: isCity ? "#00d4ff" : "#90EE90",
+              textShadow: "1px 1px 0 #000",
+            }}
           >
-            {theme.name.toUpperCase()}
+            {theme.name}
           </span>
-        </motion.div>
+        </div>
       </div>
 
-      {/* Instructions overlay */}
-      <div className="absolute bottom-3 left-3 right-3">
+      {/* Instructions box */}
+      <div className="absolute bottom-2 left-2 right-2 z-30">
         <div
-          className="bg-slate-900/80 backdrop-blur-sm rounded-lg px-4 py-2 border"
-          style={{ borderColor: `${theme.primaryColor}30` }}
+          className="px-3 py-2 border-[3px] bg-white"
+          style={{
+            borderColor: "#1a1a2e",
+            boxShadow: "3px 3px 0 rgba(0,0,0,0.2), inset -2px -2px 0 #ccc, inset 2px 2px 0 #fff",
+          }}
         >
-          <p className="text-xs text-center font-mono" style={{ color: `${theme.primaryColor}cc` }}>
+          <p
+            className="text-[9px] text-center text-gray-800"
+            style={{ fontFamily: "var(--font-pixel), monospace" }}
+          >
             {disabled ? (
-              <span className="text-yellow-400">NO ACTIONS LEFT - END DAY TO CONTINUE</span>
+              <span className="text-red-600">! NO ACTIONS - END DAY !</span>
             ) : (
-              <>CLICK A LOCATION TO EXPLORE <span className="text-slate-500">(-1 ACTION)</span></>
+              <>TAP LOCATION TO GO</>
             )}
           </p>
         </div>
       </div>
-
-      {/* Corner decorations with theme color */}
-      <div className="absolute top-2 left-2 w-8 h-8 border-l-2 border-t-2" style={{ borderColor: `${theme.primaryColor}50` }} />
-      <div className="absolute top-2 right-2 w-8 h-8 border-r-2 border-t-2" style={{ borderColor: `${theme.primaryColor}50` }} />
-      <div className="absolute bottom-2 left-2 w-8 h-8 border-l-2 border-b-2" style={{ borderColor: `${theme.primaryColor}50` }} />
-      <div className="absolute bottom-2 right-2 w-8 h-8 border-r-2 border-b-2" style={{ borderColor: `${theme.primaryColor}50` }} />
     </div>
   );
 }

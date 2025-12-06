@@ -1,0 +1,54 @@
+import { mutation, query } from "./_generated/server";
+import { v } from "convex/values";
+
+// Get top 10 scores
+export const getTopScores = query({
+  args: {},
+  handler: async (ctx) => {
+    const scores = await ctx.db
+      .query("leaderboard")
+      .withIndex("by_score")
+      .order("desc")
+      .take(10);
+    return scores;
+  },
+});
+
+// Submit a score to the leaderboard
+export const submitScore = mutation({
+  args: {
+    playerName: v.string(),
+    personaId: v.string(),
+    score: v.number(),
+    weeksCompleted: v.number(),
+    endingType: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const scoreId = await ctx.db.insert("leaderboard", {
+      playerName: args.playerName,
+      personaId: args.personaId,
+      score: args.score,
+      weeksCompleted: args.weeksCompleted,
+      endingType: args.endingType,
+      createdAt: Date.now(),
+    });
+    return scoreId;
+  },
+});
+
+// Check if score qualifies for top 10
+export const checkIfTopScore = query({
+  args: { score: v.number() },
+  handler: async (ctx, args) => {
+    const scores = await ctx.db
+      .query("leaderboard")
+      .withIndex("by_score")
+      .order("desc")
+      .take(10);
+
+    if (scores.length < 10) return true;
+
+    const lowestTopScore = scores[scores.length - 1].score;
+    return args.score > lowestTopScore;
+  },
+});

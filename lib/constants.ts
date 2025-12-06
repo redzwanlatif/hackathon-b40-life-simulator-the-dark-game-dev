@@ -17,7 +17,7 @@ export interface MapConfig {
     primaryColor: string;
     bgGradient: string;
     gridColor: string;
-    roadStyle: "modern" | "heritage" | "industrial";
+    roadStyle: "city" | "island";
   };
   landmarks: Array<{
     icon: string;
@@ -28,22 +28,22 @@ export interface MapConfig {
   }>;
 }
 
-// KL Map - Modern, organized urban layout with landmarks
+// KL Map - Big City Theme with skyscrapers and urban feel
 export const KL_MAP: MapConfig = {
   locations: {
     home: {
       id: "home",
       name: "Apartment",
-      description: "Your small studio apartment in Subang",
-      x: 75,
-      y: 75,
+      description: "Your small studio apartment in Bangsar",
+      x: 12,
+      y: 78,
       icon: "🏢",
     },
     shop: {
       id: "shop",
-      name: "7-Eleven",
+      name: "Mini Market",
       description: "24-hour convenience store",
-      x: 25,
+      x: 12,
       y: 45,
       icon: "🏪",
     },
@@ -52,39 +52,39 @@ export const KL_MAP: MapConfig = {
       name: "Petronas",
       description: "Petronas station near the highway",
       x: 85,
-      y: 35,
+      y: 45,
       icon: "⛽",
     },
     tnb: {
       id: "tnb",
       name: "TNB",
       description: "Tenaga Nasional office",
-      x: 45,
-      y: 25,
+      x: 48,
+      y: 18,
       icon: "💡",
     },
     office: {
       id: "office",
-      name: "Office Tower",
-      description: "Your company's office in Bangsar South",
-      x: 65,
-      y: 18,
+      name: "Office",
+      description: "Your company in the CBD",
+      x: 48,
+      y: 78,
       icon: "🏢",
     },
     bank: {
       id: "bank",
       name: "Maybank",
-      description: "Maybank branch in the mall",
-      x: 35,
-      y: 55,
+      description: "Maybank branch",
+      x: 85,
+      y: 18,
       icon: "🏦",
     },
     bus: {
       id: "bus",
-      name: "LRT Station",
-      description: "Kelana Jaya LRT station",
-      x: 15,
-      y: 70,
+      name: "LRT",
+      description: "LRT station",
+      x: 48,
+      y: 45,
       icon: "🚇",
     },
   },
@@ -93,173 +93,85 @@ export const KL_MAP: MapConfig = {
     primaryColor: "#00d4ff",
     bgGradient: "from-slate-900 via-blue-950 to-slate-900",
     gridColor: "rgba(0, 212, 255, 0.1)",
-    roadStyle: "modern",
+    roadStyle: "city",
   },
-  landmarks: [
-    { icon: "🎢", name: "Sunway Lagoon", x: 50, y: 85, size: "lg" },
-    { icon: "🏙️", name: "KLCC", x: 90, y: 10, size: "md" },
-    { icon: "🛒", name: "Sunway Pyramid", x: 40, y: 75, size: "md" },
-    { icon: "🌳", name: "Lake Gardens", x: 10, y: 25, size: "sm" },
-  ],
+  landmarks: [],
 };
 
-// Penang Map - Heritage town with coastal vibes
+// Penang Map - Island Paradise Theme with beaches and sea
 export const PENANG_MAP: MapConfig = {
   locations: {
     home: {
       id: "home",
       name: "Rumah",
-      description: "Your rented terrace house in Air Itam",
-      x: 70,
-      y: 70,
+      description: "Your rented house near the beach",
+      x: 12,
+      y: 78,
       icon: "🏠",
     },
     shop: {
       id: "shop",
-      name: "Kedai Ah Hock",
-      description: "The old Chinese grocery shop",
-      x: 35,
-      y: 40,
+      name: "Kedai",
+      description: "The friendly neighborhood shop",
+      x: 12,
+      y: 47,
       icon: "🏪",
     },
     petrol: {
       id: "petrol",
       name: "Shell",
-      description: "Shell station on Jalan Burma",
-      x: 20,
-      y: 65,
+      description: "Shell station on the coast road",
+      x: 62,
+      y: 47,
       icon: "⛽",
     },
     tnb: {
       id: "tnb",
       name: "TNB",
-      description: "TNB office in Komtar",
-      x: 50,
-      y: 30,
+      description: "TNB office in town",
+      x: 40,
+      y: 18,
       icon: "💡",
     },
     office: {
       id: "office",
       name: "Pejabat",
       description: "Your office in George Town",
-      x: 25,
-      y: 25,
+      x: 40,
+      y: 78,
       icon: "🏢",
     },
     bank: {
       id: "bank",
-      name: "Public Bank",
-      description: "Bank branch near the market",
-      x: 55,
-      y: 50,
+      name: "Bank",
+      description: "Bank near the jetty",
+      x: 62,
+      y: 18,
       icon: "🏦",
     },
     bus: {
       id: "bus",
-      name: "Rapid Penang",
-      description: "Bus terminal at Weld Quay",
-      x: 15,
-      y: 45,
+      name: "Bas",
+      description: "Komtar bus terminal",
+      x: 40,
+      y: 47,
       icon: "🚌",
     },
   },
   theme: {
-    name: "Penang",
-    primaryColor: "#fbbf24",
-    bgGradient: "from-amber-950 via-slate-900 to-cyan-950",
-    gridColor: "rgba(251, 191, 36, 0.08)",
-    roadStyle: "heritage",
+    name: "Pulau Pinang",
+    primaryColor: "#06b6d4",
+    bgGradient: "from-cyan-900 via-blue-900 to-cyan-950",
+    gridColor: "rgba(6, 182, 212, 0.1)",
+    roadStyle: "island",
   },
-  landmarks: [
-    { icon: "🏯", name: "Kek Lok Si", x: 85, y: 55, size: "lg" },
-    { icon: "🏖️", name: "Batu Ferringhi", x: 75, y: 15, size: "md" },
-    { icon: "🎨", name: "Street Art", x: 30, y: 15, size: "sm" },
-    { icon: "⛰️", name: "Penang Hill", x: 90, y: 35, size: "md" },
-    { icon: "🌊", name: "Straits", x: 5, y: 80, size: "sm" },
-  ],
-};
-
-// JB Map - Industrial border town
-export const JB_MAP: MapConfig = {
-  locations: {
-    home: {
-      id: "home",
-      name: "Rumah Sewa",
-      description: "Your rented flat in Tampoi",
-      x: 30,
-      y: 70,
-      icon: "🏠",
-    },
-    shop: {
-      id: "shop",
-      name: "Kedai Mamak",
-      description: "The 24-hour mamak near your flat",
-      x: 45,
-      y: 55,
-      icon: "🍜",
-    },
-    petrol: {
-      id: "petrol",
-      name: "Petronas",
-      description: "Petronas station on the way to work",
-      x: 70,
-      y: 45,
-      icon: "⛽",
-    },
-    tnb: {
-      id: "tnb",
-      name: "TNB",
-      description: "TNB office in Johor Jaya",
-      x: 25,
-      y: 35,
-      icon: "💡",
-    },
-    office: {
-      id: "office",
-      name: "Kilang",
-      description: "Your factory in Pasir Gudang",
-      x: 85,
-      y: 25,
-      icon: "🏭",
-    },
-    bank: {
-      id: "bank",
-      name: "CIMB",
-      description: "CIMB bank branch in City Square",
-      x: 55,
-      y: 75,
-      icon: "🏦",
-    },
-    bus: {
-      id: "bus",
-      name: "Larkin",
-      description: "Larkin bus terminal",
-      x: 15,
-      y: 50,
-      icon: "🚌",
-    },
-  },
-  theme: {
-    name: "Johor Bahru",
-    primaryColor: "#f97316",
-    bgGradient: "from-slate-900 via-orange-950 to-slate-900",
-    gridColor: "rgba(249, 115, 22, 0.08)",
-    roadStyle: "industrial",
-  },
-  landmarks: [
-    { icon: "🌉", name: "CIQ", x: 75, y: 85, size: "lg" },
-    { icon: "🇸🇬", name: "Singapore", x: 90, y: 90, size: "md" },
-    { icon: "🏗️", name: "Industrial Zone", x: 90, y: 40, size: "md" },
-    { icon: "🛒", name: "City Square", x: 60, y: 65, size: "sm" },
-    { icon: "🏟️", name: "Larkin Stadium", x: 10, y: 30, size: "sm" },
-  ],
+  landmarks: [],
 };
 
 // Map persona IDs to their maps
 export const PERSONA_MAPS: Record<string, MapConfig> = {
   freshGrad: KL_MAP,
   singleParent: PENANG_MAP,
-  factoryWorker: JB_MAP,
 };
 
 // Default locations for backwards compatibility
@@ -278,33 +190,20 @@ export const PERSONAS = {
     debtType: "PTPTN",
     initialCreditScore: 650,
     backstory:
-      "You just graduated with a degree in Business Administration. You landed your first job at a small company in KL. Your PTPTN loan payments start this month.",
+      "You just graduated with a degree in Business Administration. You landed your first job at a startup in KL. Your PTPTN loan payments start this month. Welcome to the big city life.",
   },
   singleParent: {
     id: "singleParent",
     name: "Single Parent",
     description: "Raising a child alone in Penang, juggling work and family",
-    location: "Penang",
+    location: "Pulau Pinang",
     monthlySalary: 1800,
     initialMoney: 500,
     initialDebt: 7000,
     debtType: "Personal Loan",
     initialCreditScore: 580,
     backstory:
-      "After your divorce, you moved back to Penang to be closer to family. You work as an admin clerk while raising your 8-year-old child. Money is always tight.",
-  },
-  factoryWorker: {
-    id: "factoryWorker",
-    name: "Factory Worker",
-    description: "Working at a factory in JB, trying to make ends meet",
-    location: "Johor Bahru",
-    monthlySalary: 1600,
-    initialMoney: 300,
-    initialDebt: 500,
-    debtType: "Credit Card",
-    initialCreditScore: 620,
-    backstory:
-      "You work the night shift at an electronics factory. The pay is low but steady. You have a small credit card debt from when you had to fix your motorcycle.",
+      "After your divorce, you moved back to your hometown island of Penang. You work as an admin clerk while raising your 8-year-old child. The sea breeze is calming, but money is always tight.",
   },
 } as const;
 

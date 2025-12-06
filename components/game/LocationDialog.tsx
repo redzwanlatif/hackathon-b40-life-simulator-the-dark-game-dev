@@ -104,7 +104,7 @@ export function LocationDialog({
               </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-4 overflow-y-auto flex-1 min-h-0 relative">
+            <div className="space-y-4 overflow-y-auto flex-1 min-h-0 relative px-1">
               {/* Narration box */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -136,7 +136,7 @@ export function LocationDialog({
               )}
 
               {/* Choices */}
-              <div className="space-y-3 pt-4">
+              <div className="space-y-3 pt-4 pb-2">
                 <motion.p
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
@@ -151,12 +151,13 @@ export function LocationDialog({
                       initial={{ opacity: 0, x: -50 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.3 + index * 0.15 }}
+                      className="px-1"
                     >
                       <motion.button
                         className={`w-full text-left p-4 rounded-xl border-2 transition-all ${
                           isProcessing
                             ? "opacity-50 cursor-not-allowed"
-                            : "hover:scale-[1.02] cursor-pointer"
+                            : "cursor-pointer"
                         } ${
                           choice.consequence.money > 0
                             ? "bg-emerald-900/30 border-emerald-500/50 hover:border-emerald-400 hover:bg-emerald-900/50"
@@ -166,8 +167,12 @@ export function LocationDialog({
                         }`}
                         onClick={() => !isProcessing && onChoiceSelect(index)}
                         disabled={isProcessing}
-                        whileHover={!isProcessing ? { boxShadow: "0 0 20px rgba(0, 255, 255, 0.3)" } : {}}
-                        whileTap={!isProcessing ? { scale: 0.98 } : {}}
+                        whileHover={!isProcessing ? { 
+                          boxShadow: "0 0 20px rgba(0, 255, 255, 0.3)",
+                          scale: 1.01,
+                        } : {}}
+                        whileTap={!isProcessing ? { scale: 0.99 } : {}}
+                        style={{ transformOrigin: "center" }}
                       >
                         <div className="flex items-start gap-3">
                           <span className="text-2xl font-bold text-cyan-400 font-mono">

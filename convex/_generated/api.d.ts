@@ -10,6 +10,7 @@
 
 import type * as ai from "../ai.js";
 import type * as games from "../games.js";
+import type * as leaderboard from "../leaderboard.js";
 
 import type {
   ApiFromModules,
@@ -20,6 +21,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   ai: typeof ai;
   games: typeof games;
+  leaderboard: typeof leaderboard;
 }>;
 
 /**
