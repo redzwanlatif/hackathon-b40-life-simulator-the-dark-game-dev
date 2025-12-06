@@ -11,6 +11,7 @@
 import type * as ai from "../ai.js";
 import type * as games from "../games.js";
 import type * as leaderboard from "../leaderboard.js";
+import type * as tidbSync from "../tidbSync.js";
 
 import type {
   ApiFromModules,
@@ -22,6 +23,7 @@ declare const fullApi: ApiFromModules<{
   ai: typeof ai;
   games: typeof games;
   leaderboard: typeof leaderboard;
+  tidbSync: typeof tidbSync;
 }>;
 
 /**
