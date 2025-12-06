@@ -3,7 +3,7 @@
 import { useQuery, useAction, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { motion } from "framer-motion";
@@ -28,6 +28,7 @@ export default function EndingPage() {
     game ? { gameId: game._id } : "skip"
   );
   const generateEnding = useAction(api.ai.generateEnding);
+  const syncToTiDB = useAction(api.tidbSync.syncCompletedGame);
   const submitScore = useMutation(api.leaderboard.submitScore);
   const isTopScore = useQuery(
     api.leaderboard.checkIfTopScore,
@@ -37,8 +38,9 @@ export default function EndingPage() {
   const [ending, setEnding] = useState<Ending | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [scoreSubmitted, setScoreSubmitted] = useState(false);
+  const tidbSyncRef = useRef(false);
 
-  // Submit score to leaderboard when game ends
+  // Submit score to leaderboard and sync to TiDB when game ends
   useEffect(() => {
     if (game?.isGameOver && !scoreSubmitted && game.playerName) {
       submitScore({
@@ -52,6 +54,21 @@ export default function EndingPage() {
         .catch(console.error);
     }
   }, [game, scoreSubmitted, submitScore]);
+
+  // Sync to TiDB for analytics (separate from leaderboard)
+  useEffect(() => {
+    if (game?.isGameOver && !tidbSyncRef.current) {
+      tidbSyncRef.current = true;
+      syncToTiDB({ gameId: game._id })
+        .then((result) => {
+          console.log("TiDB sync result:", result);
+        })
+        .catch((error) => {
+          // Don't show error to user - TiDB sync is optional
+          console.log("TiDB sync skipped:", error);
+        });
+    }
+  }, [game, syncToTiDB]);
 
   useEffect(() => {
     if (game === null) {
