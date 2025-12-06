@@ -284,10 +284,15 @@ export default function GamePage() {
         // Still check if this location completes an objective (e.g., work at office)
         if (locationInfo?.objectiveType && locationInfo.objectiveType !== "groceries") {
           try {
-            await completeObjective({
+            const result = await completeObjective({
               gameId: game._id,
               objectiveType: locationInfo.objectiveType,
             });
+            // Check if objective completion caused game over
+            if (result.isGameOver) {
+              setShowGameOver(true);
+              return;
+            }
           } catch (error) {
             // Show error message to user for debt payment issues
             if (error instanceof Error && error.message.includes("Not enough money")) {
@@ -335,10 +340,15 @@ export default function GamePage() {
         // Check if this location completes an objective (skip groceries - handled by dialog)
         if (locationInfo?.objectiveType && locationInfo.objectiveType !== "groceries") {
           try {
-            await completeObjective({
+            const result = await completeObjective({
               gameId: game._id,
               objectiveType: locationInfo.objectiveType,
             });
+            // Check if objective completion caused game over
+            if (result.isGameOver) {
+              setShowGameOver(true);
+              return;
+            }
           } catch (error) {
             // Show error message to user for debt payment issues
             if (error instanceof Error && error.message.includes("Not enough money")) {
@@ -580,13 +590,14 @@ export default function GamePage() {
   const handleGameOverRestart = useCallback(async () => {
     if (!game) return;
     try {
+      setDangerMode(false); // Reset danger music before navigating away
       await resetGame({ gameId: game._id });
       setShowGameOver(false);
       router.push("/setup");
     } catch (error) {
       console.error("Failed to reset game:", error);
     }
-  }, [game, resetGame, router]);
+  }, [game, resetGame, router, setDangerMode]);
 
   const handleMainMenu = useCallback(() => {
     router.push("/");
