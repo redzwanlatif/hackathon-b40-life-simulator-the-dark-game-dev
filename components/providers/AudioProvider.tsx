@@ -25,6 +25,7 @@ export function useAudio() {
 export function AudioProvider({ children }: { children: ReactNode }) {
   const normalAudioRef = useRef<HTMLAudioElement | null>(null);
   const dangerAudioRef = useRef<HTMLAudioElement | null>(null);
+  const isPlayingRef = useRef(false);
   const [volume, setVolumeState] = useState(0.5);
   const [isMuted, setIsMuted] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -65,8 +66,9 @@ export function AudioProvider({ children }: { children: ReactNode }) {
 
     // Try to autoplay, if blocked wait for user interaction
     const tryAutoplay = () => {
-      if (normalAudioRef.current && !isPlaying) {
+      if (normalAudioRef.current && !isPlayingRef.current) {
         normalAudioRef.current.play().then(() => {
+          isPlayingRef.current = true;
           setIsPlaying(true);
           setCurrentTrack("normal");
         }).catch(() => {
@@ -80,8 +82,9 @@ export function AudioProvider({ children }: { children: ReactNode }) {
 
     // Also try on first user interaction
     const handleFirstInteraction = () => {
-      if (!isPlaying && normalAudioRef.current) {
+      if (!isPlayingRef.current && normalAudioRef.current) {
         normalAudioRef.current.play().then(() => {
+          isPlayingRef.current = true;
           setIsPlaying(true);
           setCurrentTrack("normal");
         }).catch(() => {});
@@ -136,7 +139,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
 
   // Start music (needs user interaction)
   const startMusic = useCallback(() => {
-    if (isPlaying) return;
+    if (isPlayingRef.current) return;
 
     const audioToPlay = isDanger
       ? dangerAudioRef.current
@@ -144,13 +147,14 @@ export function AudioProvider({ children }: { children: ReactNode }) {
 
     if (audioToPlay) {
       audioToPlay.play().then(() => {
+        isPlayingRef.current = true;
         setIsPlaying(true);
         setCurrentTrack(isDanger ? "danger" : "normal");
       }).catch((error) => {
         console.error("Failed to play audio:", error);
       });
     }
-  }, [isPlaying, isDanger]);
+  }, [isDanger]);
 
   // Update volume
   const setVolume = useCallback((newVolume: number) => {
