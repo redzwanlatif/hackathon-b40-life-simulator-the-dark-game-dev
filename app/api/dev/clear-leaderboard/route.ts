@@ -5,14 +5,6 @@ import { NextResponse } from "next/server";
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
 export async function GET() {
-  // Only allow in development
-  if (process.env.NODE_ENV === "production") {
-    return NextResponse.json(
-      { error: "Not allowed in production" },
-      { status: 403 }
-    );
-  }
-
   try {
     const result = await convex.mutation(api.leaderboard.clearLeaderboard);
     return NextResponse.json({
