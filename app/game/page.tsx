@@ -7,9 +7,13 @@ import { useEffect, useState, useCallback } from "react";
 import { GameMap } from "@/components/game/GameMap";
 import { StatsBar } from "@/components/game/StatsBar";
 import { LocationDialog } from "@/components/game/LocationDialog";
+import { SpecialEventDialog } from "@/components/game/SpecialEventDialog";
+import { WeekendDialog } from "@/components/game/WeekendDialog";
+import { GameOverDialog } from "@/components/game/GameOverDialog";
+import { TutorialDialog } from "@/components/game/TutorialDialog";
 import { Button } from "@/components/ui/button";
-import { LocationId, PERSONA_MAPS, KL_MAP } from "@/lib/constants";
-import { Scenario } from "@/lib/types";
+import { LocationId, PERSONA_MAPS, KL_MAP, SPECIAL_EVENTS, WEEKEND_ACTIVITIES, PERSONAS } from "@/lib/constants";
+import { Scenario, SpecialEvent, WeekendActivity } from "@/lib/types";
 import { motion } from "framer-motion";
 import { Loader2, RotateCcw } from "lucide-react";
 
@@ -20,19 +24,56 @@ export default function GamePage() {
     api.games.getRecentDecisions,
     game ? { gameId: game._id, limit: 5 } : "skip"
   );
+  const weekComplete = useQuery(
+    api.games.checkWeekComplete,
+    game ? { gameId: game._id } : "skip"
+  );
 
   const moveToLocation = useMutation(api.games.moveToLocation);
   const updateGameState = useMutation(api.games.updateGameState);
   const recordDecision = useMutation(api.games.recordDecision);
-  const advanceTime = useMutation(api.games.advanceTime);
+  const completeObjective = useMutation(api.games.completeObjective);
+  const triggerRandomEvent = useMutation(api.games.triggerRandomEvent);
+  const selectWeekendActivity = useMutation(api.games.selectWeekendActivity);
+  const advanceDay = useMutation(api.games.advanceDay);
   const resetGame = useMutation(api.games.resetGame);
   const generateScenario = useAction(api.ai.generateScenario);
   const updateLiveScore = useMutation(api.leaderboard.updateLiveScore);
 
+  // Dialog states
   const [dialogOpen, setDialogOpen] = useState(false);
   const [currentScenario, setCurrentScenario] = useState<Scenario | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // New game flow states
+  const [showSpecialEvent, setShowSpecialEvent] = useState(false);
+  const [currentSpecialEvent, setCurrentSpecialEvent] = useState<SpecialEvent | null>(null);
+  const [showWeekendDialog, setShowWeekendDialog] = useState(false);
+  const [showGameOver, setShowGameOver] = useState(false);
+  const [pendingEventCheck, setPendingEventCheck] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
+
+  // Show tutorial on first play (week 1, day 1, full energy)
+  useEffect(() => {
+    if (game && game.currentWeek === 1 && game.currentDay === 1) {
+      const energy = game.energyRemaining ?? 11;
+      if (energy === 11) {
+        // Check if tutorial was already shown for this game
+        const tutorialShown = localStorage.getItem(`tutorial_${game._id}`);
+        if (!tutorialShown) {
+          setShowTutorial(true);
+        }
+      }
+    }
+  }, [game]);
+
+  const handleCloseTutorial = useCallback(() => {
+    if (game) {
+      localStorage.setItem(`tutorial_${game._id}`, "true");
+    }
+    setShowTutorial(false);
+  }, [game]);
 
   // Redirect if no game
   useEffect(() => {
@@ -41,16 +82,123 @@ export default function GamePage() {
     }
   }, [game, router]);
 
-  // Redirect if game over
+  // Check for game over
   useEffect(() => {
-    if (game?.isGameOver) {
-      router.push("/ending");
+    if (game?.isGameOver && !showGameOver) {
+      setShowGameOver(true);
     }
-  }, [game?.isGameOver, router]);
+  }, [game?.isGameOver, showGameOver]);
+
+  // Check if we should show weekend dialog (Day 5 complete, objectives done)
+  useEffect(() => {
+    const energy = game?.energyRemaining ?? 11;
+    if (
+      game &&
+      game.currentDay === 5 &&
+      weekComplete?.complete &&
+      energy <= 0 &&
+      !showWeekendDialog &&
+      !showSpecialEvent &&
+      !dialogOpen
+    ) {
+      setShowWeekendDialog(true);
+    }
+  }, [game, weekComplete, showWeekendDialog, showSpecialEvent, dialogOpen]);
+
+  // Get random event for current persona
+  const getRandomEvent = useCallback((): SpecialEvent | null => {
+    if (!game) return null;
+
+    const persona = game.personaId as keyof typeof SPECIAL_EVENTS;
+    const events = SPECIAL_EVENTS[persona];
+    if (!events) return null;
+
+    // Combine all events and pick randomly
+    const allEvents = [...events.negative, ...events.positive, ...(events.neutral || [])];
+    const randomIndex = Math.floor(Math.random() * allEvents.length);
+    return allEvents[randomIndex] as SpecialEvent;
+  }, [game]);
+
+  // Check for random event trigger after action
+  const checkForRandomEvent = useCallback(() => {
+    if (!game) return;
+
+    const eventDay = game.weeklyEventDay ?? Math.floor(Math.random() * 5) + 1;
+    const eventTriggered = game.weeklyEventTriggered ?? false;
+
+    // Only trigger on the designated event day and if not already triggered
+    if (
+      game.currentDay === eventDay &&
+      !eventTriggered &&
+      !showSpecialEvent
+    ) {
+      const event = getRandomEvent();
+      if (event) {
+        setCurrentSpecialEvent(event);
+        setShowSpecialEvent(true);
+      }
+    }
+  }, [game, showSpecialEvent, getRandomEvent]);
+
+  // Handle random event continue
+  const handleEventContinue = useCallback(async () => {
+    if (!game || !currentSpecialEvent) return;
+
+    try {
+      await triggerRandomEvent({
+        gameId: game._id,
+        eventId: currentSpecialEvent.id,
+        moneyChange: currentSpecialEvent.moneyChange,
+        stressChange: currentSpecialEvent.stressChange,
+        healthChange: currentSpecialEvent.healthChange,
+      });
+
+      setShowSpecialEvent(false);
+      setCurrentSpecialEvent(null);
+    } catch (error) {
+      console.error("Failed to process event:", error);
+    }
+  }, [game, currentSpecialEvent, triggerRandomEvent]);
+
+  // Handle weekend activity selection
+  const handleWeekendActivity = useCallback(
+    async (activity: WeekendActivity) => {
+      if (!game) return;
+
+      try {
+        const result = await selectWeekendActivity({
+          gameId: game._id,
+          activityId: activity.id,
+          moneyCost: activity.moneyCost,
+          stressChange: activity.stressChange,
+          healthChange: activity.healthChange,
+        });
+
+        setShowWeekendDialog(false);
+
+        if (result.isGameOver) {
+          setShowGameOver(true);
+        }
+      } catch (error) {
+        console.error("Failed to process weekend activity:", error);
+      }
+    },
+    [game, selectWeekendActivity]
+  );
 
   const handleLocationClick = useCallback(
     async (locationId: LocationId) => {
-      if (!game || game.actionsRemaining <= 0 || isGenerating) return;
+      const energy = game?.energyRemaining ?? 11;
+      if (!game || energy <= 0 || isGenerating) return;
+
+      // Get location info to check objective type
+      const mapData = PERSONA_MAPS[game.personaId] || KL_MAP;
+      const locationInfo = mapData.locations[locationId];
+
+      // Check if this is a weekend-only location on a weekday
+      if (locationInfo?.isWeekendOnly && game.currentDay <= 5) {
+        return; // Can't visit weekend locations on weekdays
+      }
 
       // If clicking current location, trigger scenario without moving
       if (locationId === game.currentLocation) {
@@ -84,9 +232,21 @@ export default function GamePage() {
         return;
       }
 
-      // Move to new location
+      // Move to new location (costs 1 energy)
       try {
         await moveToLocation({ gameId: game._id, location: locationId });
+
+        // Check if this location completes an objective
+        if (locationInfo?.objectiveType) {
+          try {
+            await completeObjective({
+              gameId: game._id,
+              objectiveType: locationInfo.objectiveType,
+            });
+          } catch {
+            // Objective might already be complete or not applicable
+          }
+        }
 
         // Generate scenario for new location
         setDialogOpen(true);
@@ -110,13 +270,16 @@ export default function GamePage() {
             })) || [],
         });
         setCurrentScenario(scenario as Scenario);
+
+        // Mark that we need to check for event after dialog closes
+        setPendingEventCheck(true);
       } catch (error) {
         console.error("Failed to move or generate scenario:", error);
       } finally {
         setIsGenerating(false);
       }
     },
-    [game, recentDecisions, isGenerating, moveToLocation, generateScenario]
+    [game, recentDecisions, isGenerating, moveToLocation, completeObjective, generateScenario]
   );
 
   const handleChoiceSelect = useCallback(
@@ -170,7 +333,11 @@ export default function GamePage() {
 
         // Check if game over
         if (result.isGameOver) {
-          router.push("/ending");
+          setShowGameOver(true);
+        } else if (pendingEventCheck) {
+          // Check for random event after dialog closes
+          setPendingEventCheck(false);
+          setTimeout(() => checkForRandomEvent(), 500);
         }
       } catch (error) {
         console.error("Failed to process choice:", error);
@@ -178,21 +345,35 @@ export default function GamePage() {
         setIsProcessing(false);
       }
     },
-    [game, currentScenario, isProcessing, recordDecision, updateGameState, updateLiveScore, router]
+    [game, currentScenario, isProcessing, pendingEventCheck, recordDecision, updateGameState, updateLiveScore, checkForRandomEvent]
   );
 
-  const handleEndDay = useCallback(async () => {
+  const handleAdvanceDay = useCallback(async () => {
     if (!game) return;
 
+    // Check if objectives are complete and we're on day 5
+    if (game.currentDay === 5 && weekComplete?.complete) {
+      setShowWeekendDialog(true);
+      return;
+    }
+
+    // Check if energy is depleted but objectives incomplete
+    const energy = game.energyRemaining ?? 11;
+    if (energy <= 0 && !weekComplete?.complete) {
+      // Game over - ran out of energy without completing objectives
+      setShowGameOver(true);
+      return;
+    }
+
     try {
-      const result = await advanceTime({ gameId: game._id });
-      if (result.isGameOver) {
-        router.push("/ending");
+      const result = await advanceDay({ gameId: game._id });
+      if (result.shouldShowWeekendDialog) {
+        setShowWeekendDialog(true);
       }
     } catch (error) {
-      console.error("Failed to advance time:", error);
+      console.error("Failed to advance day:", error);
     }
-  }, [game, advanceTime, router]);
+  }, [game, weekComplete, advanceDay]);
 
   const handleResetGame = useCallback(async () => {
     if (!game) return;
@@ -206,6 +387,21 @@ export default function GamePage() {
     }
   }, [game, resetGame, router]);
 
+  const handleGameOverRestart = useCallback(async () => {
+    if (!game) return;
+    try {
+      await resetGame({ gameId: game._id });
+      setShowGameOver(false);
+      router.push("/setup");
+    } catch (error) {
+      console.error("Failed to reset game:", error);
+    }
+  }, [game, resetGame, router]);
+
+  const handleMainMenu = useCallback(() => {
+    router.push("/");
+  }, [router]);
+
   if (game === undefined) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center">
@@ -217,6 +413,24 @@ export default function GamePage() {
   if (!game) {
     return null;
   }
+
+  // Provide defaults for optional fields (for backwards compatibility with old games)
+  // New games have energyRemaining (11), old games should also use 11 as they need new mechanics
+  const energyRemaining = game.energyRemaining ?? 11;
+  const weeklyObjectives = game.weeklyObjectives ?? {
+    workDaysCompleted: 0,
+    boughtGroceries: false,
+    filledPetrol: false,
+    paidDebt: false,
+  };
+  const weeklyEventDay = game.weeklyEventDay ?? Math.floor(Math.random() * 5) + 1;
+  const weeklyEventTriggered = game.weeklyEventTriggered ?? false;
+
+  // Get weekend activities for current persona
+  const personaActivities =
+    WEEKEND_ACTIVITIES[game.personaId as keyof typeof WEEKEND_ACTIVITIES] ||
+    WEEKEND_ACTIVITIES.freshGrad;
+  const weekendActivities = Array.isArray(personaActivities) ? personaActivities : [];
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 p-4">
@@ -233,7 +447,8 @@ export default function GamePage() {
             stress={game.stress}
             day={game.currentDay}
             week={game.currentWeek}
-            actionsRemaining={game.actionsRemaining}
+            energyRemaining={energyRemaining}
+            weeklyObjectives={weeklyObjectives}
           />
         </motion.div>
 
@@ -245,8 +460,10 @@ export default function GamePage() {
           <GameMap
             currentLocation={game.currentLocation as LocationId}
             onLocationClick={handleLocationClick}
-            disabled={game.actionsRemaining <= 0 || isGenerating}
+            disabled={energyRemaining <= 0 || isGenerating}
             personaId={game.personaId}
+            currentDay={game.currentDay}
+            weeklyObjectives={weeklyObjectives}
           />
         </motion.div>
 
@@ -257,17 +474,22 @@ export default function GamePage() {
           className="flex justify-between items-center"
         >
           <div className="text-slate-400 text-sm">
-            Current: {(PERSONA_MAPS[game.personaId] || KL_MAP).locations[game.currentLocation as LocationId].name}
+            Current: {(PERSONA_MAPS[game.personaId] || KL_MAP).locations[game.currentLocation as LocationId]?.name || "Unknown"}
           </div>
 
           <div className="flex gap-2">
-            {game.actionsRemaining <= 0 && (
+            {energyRemaining <= 0 && game.currentDay === 5 && weekComplete?.complete && (
               <Button
-                onClick={handleEndDay}
-                className="bg-amber-600 hover:bg-amber-700"
+                onClick={() => setShowWeekendDialog(true)}
+                className="bg-cyan-600 hover:bg-cyan-700"
               >
-                End Day
+                Weekend Time!
               </Button>
+            )}
+            {energyRemaining <= 0 && !weekComplete?.complete && (
+              <div className="text-red-400 text-sm mr-2 flex items-center">
+                Energy depleted! Complete objectives to continue.
+              </div>
             )}
             <Button
               variant="outline"
@@ -281,12 +503,17 @@ export default function GamePage() {
           </div>
         </motion.div>
 
+        {/* Location Dialog */}
         <LocationDialog
           open={dialogOpen}
           onClose={() => {
             if (!isProcessing) {
               setDialogOpen(false);
               setCurrentScenario(null);
+              if (pendingEventCheck) {
+                setPendingEventCheck(false);
+                setTimeout(() => checkForRandomEvent(), 500);
+              }
             }
           }}
           scenario={currentScenario}
@@ -294,6 +521,48 @@ export default function GamePage() {
           onChoiceSelect={handleChoiceSelect}
           isProcessing={isProcessing}
           personaId={game.personaId}
+        />
+
+        {/* Special Event Dialog */}
+        <SpecialEventDialog
+          isOpen={showSpecialEvent}
+          event={currentSpecialEvent}
+          onContinue={handleEventContinue}
+        />
+
+        {/* Weekend Dialog */}
+        <WeekendDialog
+          isOpen={showWeekendDialog}
+          personaId={game.personaId}
+          activities={weekendActivities as WeekendActivity[]}
+          skipActivity={WEEKEND_ACTIVITIES.skip}
+          currentMoney={game.money}
+          currentWeek={game.currentWeek}
+          onSelectActivity={handleWeekendActivity}
+        />
+
+        {/* Game Over Dialog */}
+        <GameOverDialog
+          isOpen={showGameOver}
+          endingType={game.endingType || "game_over"}
+          failureReason={game.failureReason || "Game Over"}
+          stats={{
+            money: game.money,
+            debt: game.debt,
+            health: game.health,
+            stress: game.stress,
+            creditScore: game.creditScore,
+            weeksCompleted: game.currentWeek,
+          }}
+          onRestart={handleGameOverRestart}
+          onMainMenu={handleMainMenu}
+        />
+
+        {/* Tutorial Dialog */}
+        <TutorialDialog
+          isOpen={showTutorial}
+          onClose={handleCloseTutorial}
+          personaName={PERSONAS[game.personaId as keyof typeof PERSONAS]?.name || "Player"}
         />
       </div>
     </main>

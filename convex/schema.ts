@@ -11,12 +11,29 @@ export default defineSchema({
     creditScore: v.number(),
     health: v.number(),
     stress: v.number(),
-    currentDay: v.number(),
-    currentWeek: v.number(),
-    actionsRemaining: v.number(),
+    currentDay: v.number(), // 1-5 weekdays
+    currentWeek: v.number(), // 1-4
     currentLocation: v.string(),
+
+    // New energy system (optional for backwards compatibility with old games)
+    energyRemaining: v.optional(v.number()), // 11 per week
+    actionsRemaining: v.optional(v.number()), // Legacy field
+
+    // Weekly objectives tracking (optional for backwards compatibility)
+    weeklyObjectives: v.optional(v.object({
+      workDaysCompleted: v.number(), // 0-5, need 5 to complete
+      boughtGroceries: v.boolean(),
+      filledPetrol: v.boolean(),
+      paidDebt: v.boolean(), // only required week 4
+    })),
+
+    // Special event tracking (optional for backwards compatibility)
+    weeklyEventTriggered: v.optional(v.boolean()),
+    weeklyEventDay: v.optional(v.number()), // random day 1-5 when event triggers
+
     isGameOver: v.boolean(),
     endingType: v.optional(v.string()),
+    failureReason: v.optional(v.string()),
   }),
 
   // Player decision history

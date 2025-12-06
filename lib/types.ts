@@ -1,5 +1,13 @@
 import { LocationId, PersonaId, Emotion } from "./constants";
 
+// Weekly objectives tracking
+export interface WeeklyObjectives {
+  workDaysCompleted: number; // 0-5, need 5 to complete
+  boughtGroceries: boolean;
+  filledPetrol: boolean;
+  paidDebt: boolean; // only required week 4
+}
+
 // Game state stored in database
 export interface GameState {
   _id: string;
@@ -9,13 +17,40 @@ export interface GameState {
   creditScore: number;
   health: number;
   stress: number;
-  currentDay: number;
-  currentWeek: number;
-  actionsRemaining: number;
+  currentDay: number; // 1-5 weekdays
+  currentWeek: number; // 1-4
+  energyRemaining: number; // 11 per week
   currentLocation: LocationId;
+  weeklyObjectives: WeeklyObjectives;
+  weeklyEventTriggered: boolean;
+  weeklyEventDay: number; // random day 1-5 when event triggers
   isGameOver: boolean;
+  endingType?: string;
+  failureReason?: string;
   createdAt: number;
   updatedAt: number;
+}
+
+// Special random event
+export interface SpecialEvent {
+  id: string;
+  title: string;
+  description: string;
+  moneyChange: number;
+  stressChange: number;
+  healthChange: number;
+  isPositive: boolean;
+}
+
+// Weekend activity option
+export interface WeekendActivity {
+  id: string;
+  name: string;
+  description: string;
+  locationId?: string;
+  moneyCost: number;
+  stressChange: number; // negative = stress reduction
+  healthChange?: number;
 }
 
 // Player decision record

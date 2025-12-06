@@ -329,7 +329,120 @@ function getFallbackScenario(location: LocationId, currentMoney: number) {
         },
       ],
     }),
+    // New weekend and extra locations
+    post_office: () => ({
+      id: `fallback_post_office_${Date.now()}`,
+      location: "post_office",
+      narration: "Pos Malaysia is quiet today. You can send letters, pay bills, or do some banking here.",
+      emotion: "neutral",
+      choices: [
+        {
+          text: "Pay utility bills (convenient)",
+          consequence: { money: -50, credit: 5, health: 0, stress: -5 },
+        },
+        {
+          text: "Just browse, nothing urgent",
+          consequence: { money: 0, credit: 0, health: 0, stress: 0 },
+        },
+      ],
+    }),
+    fancy_restaurant: () => ({
+      id: `fallback_fancy_restaurant_${Date.now()}`,
+      location: "fancy_restaurant",
+      narration: "A nice restaurant in Bangsar. Smells delicious! A good meal could lift your spirits.",
+      emotion: "excited",
+      choices: [
+        {
+          text: "Treat yourself to a nice dinner",
+          consequence: { money: -150, credit: 0, health: 5, stress: -25 },
+        },
+        {
+          text: "Just get a drink and appetizer",
+          consequence: { money: -50, credit: 0, health: 0, stress: -10 },
+        },
+      ],
+    }),
+    fancy_cafe: () => ({
+      id: `fallback_fancy_cafe_${Date.now()}`,
+      location: "fancy_cafe",
+      narration: "A hipster cafe with good WiFi and Instagram-worthy drinks. Perfect for unwinding.",
+      emotion: "relaxed",
+      choices: [
+        {
+          text: "Order artisan coffee and cake",
+          consequence: { money: -80, credit: 0, health: 0, stress: -15 },
+        },
+        {
+          text: "Just get a basic coffee",
+          consequence: { money: -20, credit: 0, health: 0, stress: -5 },
+        },
+      ],
+    }),
+    sunway_lagoon: () => ({
+      id: `fallback_sunway_lagoon_${Date.now()}`,
+      location: "sunway_lagoon",
+      narration: "Sunway Lagoon! Rides, water parks, and fun awaits. A full day here would be amazing!",
+      emotion: "excited",
+      choices: [
+        {
+          text: "Full day pass - enjoy everything!",
+          consequence: { money: -200, credit: 0, health: 10, stress: -35 },
+        },
+        {
+          text: "Just walk around the mall nearby",
+          consequence: { money: -30, credit: 0, health: 0, stress: -10 },
+        },
+      ],
+    }),
+    shopping_mall: () => ({
+      id: `fallback_shopping_mall_${Date.now()}`,
+      location: "shopping_mall",
+      narration: "The shopping mall is bustling with activity. Sales everywhere!",
+      emotion: "neutral",
+      choices: [
+        {
+          text: "Window shopping only",
+          consequence: { money: 0, credit: 0, health: -5, stress: -5 },
+        },
+        {
+          text: "Buy something nice for yourself",
+          consequence: { money: -100, credit: 0, health: 0, stress: -15 },
+        },
+      ],
+    }),
+    penang_hill: () => ({
+      id: `fallback_penang_hill_${Date.now()}`,
+      location: "penang_hill",
+      narration: "Penang Hill offers a beautiful view. The fresh air and nature is therapeutic.",
+      emotion: "relaxed",
+      choices: [
+        {
+          text: "Take the funicular up and enjoy the view",
+          consequence: { money: -30, credit: 0, health: 15, stress: -30 },
+        },
+        {
+          text: "Walk the trails instead (free but tiring)",
+          consequence: { money: 0, credit: 0, health: 20, stress: -20 },
+        },
+      ],
+    }),
+    restaurant: () => ({
+      id: `fallback_restaurant_${Date.now()}`,
+      location: "restaurant",
+      narration: "A family-friendly restaurant. Your child's eyes light up seeing the menu.",
+      emotion: "happy",
+      choices: [
+        {
+          text: "Order a family meal",
+          consequence: { money: -100, credit: 0, health: 5, stress: -20 },
+        },
+        {
+          text: "Get something small, save money",
+          consequence: { money: -40, credit: 0, health: 0, stress: -5 },
+        },
+      ],
+    }),
   };
 
-  return fallbacks[location]();
+  return fallbacks[location]?.() || fallbacks.home();
 }

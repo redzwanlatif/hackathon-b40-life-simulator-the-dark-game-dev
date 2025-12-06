@@ -4,6 +4,15 @@ import { Progress } from "@/components/ui/progress";
 import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useState } from "react";
 import { Coins, Heart, Brain, TrendingUp, Calendar, Zap } from "lucide-react";
+import { EnergyBar } from "./EnergyBar";
+import { ObjectivesPanel } from "./ObjectivesPanel";
+
+interface WeeklyObjectives {
+  workDaysCompleted: number;
+  boughtGroceries: boolean;
+  filledPetrol: boolean;
+  paidDebt: boolean;
+}
 
 interface StatsBarProps {
   money: number;
@@ -13,7 +22,8 @@ interface StatsBarProps {
   stress: number;
   day: number;
   week: number;
-  actionsRemaining: number;
+  energyRemaining: number;
+  weeklyObjectives: WeeklyObjectives;
 }
 
 export function StatsBar({
@@ -24,7 +34,8 @@ export function StatsBar({
   stress,
   day,
   week,
-  actionsRemaining,
+  energyRemaining,
+  weeklyObjectives,
 }: StatsBarProps) {
   const [prevMoney, setPrevMoney] = useState(money);
   const [moneyDiff, setMoneyDiff] = useState(0);
@@ -74,34 +85,29 @@ export function StatsBar({
       {/* Scanline overlay */}
       <div className="absolute inset-0 scanlines opacity-30 pointer-events-none" />
 
-      {/* Top row - Time and Actions */}
+      {/* Top row - Time and Energy */}
       <div className="flex justify-between items-center text-sm relative">
         <div className="flex items-center gap-2">
           <Calendar className="w-4 h-4 text-cyan-400" />
           <span className="font-mono text-cyan-300">
             WEEK <span className="text-white font-bold text-lg">{week}</span>
             <span className="text-slate-500 mx-1">/</span>
+            <span className="text-slate-400">4</span>
+            <span className="text-slate-500 mx-2">|</span>
             DAY <span className="text-white font-bold text-lg">{day}</span>
+            <span className="text-slate-500 mx-1">/</span>
+            <span className="text-slate-400">5</span>
           </span>
         </div>
-        <div className="flex items-center gap-1">
-          <Zap className="w-4 h-4 text-yellow-400" />
-          <div className="flex gap-1">
-            {[...Array(3)].map((_, i) => (
-              <motion.div
-                key={i}
-                className={`w-3 h-6 rounded-sm ${
-                  i < actionsRemaining
-                    ? "bg-gradient-to-t from-yellow-600 to-yellow-400 box-glow-yellow"
-                    : "bg-slate-700"
-                }`}
-                animate={i < actionsRemaining ? { scale: [1, 1.1, 1] } : {}}
-                transition={{ repeat: Infinity, duration: 1.5, delay: i * 0.2 }}
-              />
-            ))}
-          </div>
-        </div>
+        <EnergyBar energy={energyRemaining} maxEnergy={11} />
       </div>
+
+      {/* Objectives Panel */}
+      <ObjectivesPanel
+        objectives={weeklyObjectives}
+        currentWeek={week}
+        energy={energyRemaining}
+      />
 
       {/* Money and Debt Row */}
       <div className="grid grid-cols-2 gap-4 relative">
@@ -261,7 +267,7 @@ export function StatsBar({
             className="bg-red-900/50 border border-red-500 rounded-lg p-2 text-center"
           >
             <span className="text-red-400 text-sm font-bold animate-pulse">
-              ⚠️ {health < 30 ? "CRITICAL HEALTH!" : stress > 70 ? "BURNOUT WARNING!" : "BROKE!"}
+              {health < 30 ? "CRITICAL HEALTH!" : stress > 70 ? "BURNOUT WARNING!" : "BROKE!"}
             </span>
           </motion.div>
         )}
