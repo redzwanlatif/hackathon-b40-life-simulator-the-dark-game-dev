@@ -11,6 +11,7 @@ import { useState, useEffect } from "react";
 import { api } from "@/convex/_generated/api";
 
 const PLAYER_NAME_KEY = "b40_player_name";
+const GAME_ID_KEY = "b40_current_game_id";
 
 export default function SetupPage() {
   const router = useRouter();
@@ -45,13 +46,15 @@ export default function SetupPage() {
     setIsCreating(true);
     try {
       const persona = PERSONAS[selectedPersona];
-      await createGame({
+      const gameId = await createGame({
         playerName: playerName.trim(),
         personaId: selectedPersona,
         initialMoney: persona.initialMoney,
         initialDebt: persona.initialDebt,
         initialCreditScore: persona.initialCreditScore,
       });
+      // Save gameId to localStorage to prevent character switching bug
+      localStorage.setItem(GAME_ID_KEY, gameId);
       router.push("/game");
     } catch (error) {
       console.error("Failed to create game:", error);
