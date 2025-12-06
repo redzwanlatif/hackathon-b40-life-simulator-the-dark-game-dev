@@ -315,7 +315,7 @@ export default function AnalyticsPage() {
                   ) : (
                     <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {data.decisions.map((loc) => {
-                        const location = LOCATIONS.find((l) => l.id === loc.location);
+                        const location = LOCATIONS[loc.location as keyof typeof LOCATIONS];
                         const isPositive = loc.avg_money_change >= 0;
                         return (
                           <div

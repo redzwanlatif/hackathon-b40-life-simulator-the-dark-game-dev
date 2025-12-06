@@ -1,8 +1,45 @@
 "use node";
 
-import { action, internalAction } from "./_generated/server";
+import { action } from "./_generated/server";
 import { v } from "convex/values";
-import { api, internal } from "./_generated/api";
+import { api } from "./_generated/api";
+import { Id } from "./_generated/dataModel";
+
+// Types for the sync data
+interface GameSyncData {
+  convex_game_id: string;
+  player_name: string;
+  persona_id: string;
+  final_money: number;
+  final_credit_score: number;
+  final_health: number;
+  final_stress: number;
+  final_debt: number;
+  weeks_completed: number;
+  ending_type: string;
+  failure_reason: string | null;
+}
+
+interface DecisionSyncData {
+  convex_game_id: string;
+  location: string;
+  scenario_id: string;
+  choice_index: number;
+  choice_text: string;
+  money_change: number;
+  credit_change: number;
+  health_change: number;
+  stress_change: number;
+  day: number;
+  week: number;
+}
+
+interface SyncResult {
+  success: boolean;
+  error?: string;
+  gameId?: number;
+  decisionsCount?: number;
+}
 
 // TiDB sync action - syncs completed game data to TiDB for analytics
 // This calls the Next.js API route which handles the actual TiDB connection
@@ -11,7 +48,7 @@ export const syncCompletedGame = action({
   args: {
     gameId: v.id("games"),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<SyncResult> => {
     // Get the game data from Convex
     const game = await ctx.runQuery(api.games.getGame, { gameId: args.gameId });
     if (!game) {
@@ -24,7 +61,7 @@ export const syncCompletedGame = action({
     });
 
     // Prepare the data for TiDB
-    const gameData = {
+    const gameData: GameSyncData = {
       convex_game_id: args.gameId,
       player_name: game.playerName || "Anonymous",
       persona_id: game.personaId,
@@ -38,7 +75,18 @@ export const syncCompletedGame = action({
       failure_reason: game.failureReason || null,
     };
 
-    const decisionsData = decisions.map((d) => ({
+    const decisionsData: DecisionSyncData[] = decisions.map((d: {
+      location: string;
+      scenarioId: string;
+      choiceIndex: number;
+      choiceText: string;
+      moneyChange: number;
+      creditChange: number;
+      healthChange: number;
+      stressChange: number;
+      day: number;
+      week: number;
+    }) => ({
       convex_game_id: args.gameId,
       location: d.location,
       scenario_id: d.scenarioId,
@@ -71,18 +119,18 @@ export const syncCompletedGame = action({
       });
 
       if (!response.ok) {
-        const error = await response.text();
-        console.error("TiDB sync failed:", error);
+        const errorText = await response.text();
+        console.error("TiDB sync failed:", errorText);
         // Don't throw - we don't want to break the game flow if analytics fails
-        return { success: false, error };
+        return { success: false, error: errorText };
       }
 
-      const result = await response.json();
-      return { success: true, ...result };
-    } catch (error) {
-      console.error("TiDB sync error:", error);
+      const result = await response.json() as SyncResult;
+      return { ...result, success: true };
+    } catch (err) {
+      console.error("TiDB sync error:", err);
       // Don't throw - analytics sync failure shouldn't break the game
-      return { success: false, error: String(error) };
+      return { success: false, error: String(err) };
     }
   },
 });
@@ -92,8 +140,8 @@ export const syncBatchGames = action({
   args: {
     gameIds: v.array(v.id("games")),
   },
-  handler: async (ctx, args) => {
-    const results = [];
+  handler: async (ctx, args): Promise<Array<{ gameId: Id<"games">; success: boolean; error?: string }>> => {
+    const results: Array<{ gameId: Id<"games">; success: boolean; error?: string }> = [];
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
     for (const gameId of args.gameIds) {
@@ -107,7 +155,7 @@ export const syncBatchGames = action({
 
         const decisions = await ctx.runQuery(api.games.getAllDecisions, { gameId });
 
-        const gameData = {
+        const gameData: GameSyncData = {
           convex_game_id: gameId,
           player_name: game.playerName || "Anonymous",
           persona_id: game.personaId,
@@ -121,7 +169,18 @@ export const syncBatchGames = action({
           failure_reason: game.failureReason || null,
         };
 
-        const decisionsData = decisions.map((d) => ({
+        const decisionsData: DecisionSyncData[] = decisions.map((d: {
+          location: string;
+          scenarioId: string;
+          choiceIndex: number;
+          choiceText: string;
+          moneyChange: number;
+          creditChange: number;
+          healthChange: number;
+          stressChange: number;
+          day: number;
+          week: number;
+        }) => ({
           convex_game_id: gameId,
           location: d.location,
           scenario_id: d.scenarioId,
@@ -149,12 +208,11 @@ export const syncBatchGames = action({
         } else {
           results.push({ gameId, success: false, error: await response.text() });
         }
-      } catch (error) {
-        results.push({ gameId, success: false, error: String(error) });
+      } catch (err) {
+        results.push({ gameId, success: false, error: String(err) });
       }
     }
 
     return results;
   },
 });
-
