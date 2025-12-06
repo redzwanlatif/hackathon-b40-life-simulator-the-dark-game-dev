@@ -153,12 +153,37 @@ export const moveToLocation = mutation({
     const energy = getEnergy(game);
     if (energy <= 0) throw new Error("No energy remaining");
 
+    const newEnergy = energy - 1;
+    const objectives = getObjectives(game);
+
+    // Check if it's impossible to complete objectives with remaining energy
+    const workDaysNeeded = Math.max(0, 5 - objectives.workDaysCompleted);
+    const groceriesNeeded = objectives.boughtGroceries ? 0 : 1;
+    const petrolNeeded = objectives.filledPetrol ? 0 : 1;
+    const debtNeeded = (game.currentWeek === 4 && !objectives.paidDebt) ? 1 : 0;
+
+    // Minimum energy needed (work days + other objectives that aren't at same location)
+    const minEnergyNeeded = workDaysNeeded + groceriesNeeded + petrolNeeded + debtNeeded;
+
+    let isGameOver = false;
+    let endingType: string | undefined;
+    let failureReason: string | undefined;
+
+    if (newEnergy < minEnergyNeeded) {
+      isGameOver = true;
+      endingType = "impossible_objectives";
+      failureReason = `Not enough energy to complete objectives. Need ${minEnergyNeeded} energy but only have ${newEnergy}. Work: ${workDaysNeeded} days needed, Groceries: ${groceriesNeeded ? "pending" : "done"}, Petrol: ${petrolNeeded ? "pending" : "done"}${debtNeeded ? ", Debt: pending" : ""}.`;
+    }
+
     await ctx.db.patch(args.gameId, {
       currentLocation: args.location,
-      energyRemaining: energy - 1,
+      energyRemaining: newEnergy,
+      isGameOver,
+      endingType,
+      failureReason,
     });
 
-    return { energyRemaining: energy - 1 };
+    return { energyRemaining: newEnergy, isGameOver, endingType, failureReason };
   },
 });
 

@@ -92,3 +92,17 @@ export const checkIfTopScore = query({
     return args.score > lowestTopScore;
   },
 });
+
+// Clear all leaderboard entries (dev only)
+export const clearLeaderboard = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const allScores = await ctx.db.query("leaderboard").collect();
+
+    for (const score of allScores) {
+      await ctx.db.delete(score._id);
+    }
+
+    return { deleted: allScores.length };
+  },
+});
