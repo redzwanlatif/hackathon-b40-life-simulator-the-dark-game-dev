@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, Press_Start_2P } from "next/font/google";
 import "./globals.css";
 import { ConvexProvider } from "@/components/providers/ConvexProvider";
+import { Header } from "@/components/Header";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,7 +35,12 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${pressStart2P.variable} antialiased`}
       >
-        <ConvexProvider>{children}</ConvexProvider>
+        <ConvexProvider>
+          <Header />
+          <div className="pt-12">
+            {children}
+          </div>
+        </ConvexProvider>
       </body>
     </html>
   );

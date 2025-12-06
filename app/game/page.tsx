@@ -27,6 +27,7 @@ export default function GamePage() {
   const advanceTime = useMutation(api.games.advanceTime);
   const resetGame = useMutation(api.games.resetGame);
   const generateScenario = useAction(api.ai.generateScenario);
+  const updateLiveScore = useMutation(api.leaderboard.updateLiveScore);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [currentScenario, setCurrentScenario] = useState<Scenario | null>(null);
@@ -151,6 +152,18 @@ export default function GamePage() {
           stressChange: choice.consequence.stress,
         });
 
+        // Update live leaderboard score
+        if (game.playerName) {
+          const newMoney = game.money + choice.consequence.money;
+          await updateLiveScore({
+            gameId: game._id,
+            playerName: game.playerName,
+            personaId: game.personaId,
+            score: Math.max(0, newMoney),
+            weeksCompleted: game.currentWeek,
+          });
+        }
+
         // Close dialog
         setDialogOpen(false);
         setCurrentScenario(null);
@@ -165,7 +178,7 @@ export default function GamePage() {
         setIsProcessing(false);
       }
     },
-    [game, currentScenario, isProcessing, recordDecision, updateGameState, router]
+    [game, currentScenario, isProcessing, recordDecision, updateGameState, updateLiveScore, router]
   );
 
   const handleEndDay = useCallback(async () => {

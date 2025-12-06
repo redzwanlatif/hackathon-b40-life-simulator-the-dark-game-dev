@@ -73,11 +73,14 @@ export default defineSchema({
 
   // Leaderboard for top scores
   leaderboard: defineTable({
+    gameId: v.optional(v.id("games")),
     playerName: v.string(),
     personaId: v.string(),
     score: v.number(), // Final cash money in hand
     weeksCompleted: v.number(),
     endingType: v.string(),
     createdAt: v.number(),
-  }).index("by_score", ["score"]),
+  })
+    .index("by_score", ["score"])
+    .index("by_game", ["gameId"]),
 });

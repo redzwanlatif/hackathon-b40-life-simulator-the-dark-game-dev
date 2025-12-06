@@ -36,6 +36,46 @@ export const submitScore = mutation({
   },
 });
 
+// Update score live (upsert based on gameId)
+export const updateLiveScore = mutation({
+  args: {
+    gameId: v.id("games"),
+    playerName: v.string(),
+    personaId: v.string(),
+    score: v.number(),
+    weeksCompleted: v.number(),
+  },
+  handler: async (ctx, args) => {
+    // Find existing entry for this game
+    const existing = await ctx.db
+      .query("leaderboard")
+      .withIndex("by_game")
+      .filter((q) => q.eq(q.field("gameId"), args.gameId))
+      .first();
+
+    if (existing) {
+      // Update existing entry
+      await ctx.db.patch(existing._id, {
+        score: args.score,
+        weeksCompleted: args.weeksCompleted,
+      });
+      return existing._id;
+    } else {
+      // Create new entry
+      const scoreId = await ctx.db.insert("leaderboard", {
+        gameId: args.gameId,
+        playerName: args.playerName,
+        personaId: args.personaId,
+        score: args.score,
+        weeksCompleted: args.weeksCompleted,
+        endingType: "playing",
+        createdAt: Date.now(),
+      });
+      return scoreId;
+    }
+  },
+});
+
 // Check if score qualifies for top 10
 export const checkIfTopScore = query({
   args: { score: v.number() },
