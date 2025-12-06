@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { GameMap } from "@/components/game/GameMap";
 import { StatsBar } from "@/components/game/StatsBar";
 import { LocationDialog } from "@/components/game/LocationDialog";
@@ -56,11 +56,22 @@ export default function GamePage() {
   const [showTutorial, setShowTutorial] = useState(false);
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
 
-  // Show tutorial on first play (week 1, day 1, full energy)
+  // Track if we've already checked tutorial for this game session
+  const tutorialCheckedRef = useRef<string | null>(null);
+
+  // Show tutorial on first play (week 1, day 1, full energy) - only check once per game
   useEffect(() => {
-    if (game && game.currentWeek === 1 && game.currentDay === 1) {
+    if (!game) return;
+
+    // Only check once per game to prevent repeated popups
+    if (tutorialCheckedRef.current === game._id) return;
+
+    if (game.currentWeek === 1 && game.currentDay === 1) {
       const energy = game.energyRemaining ?? 11;
       if (energy === 11) {
+        // Mark as checked for this game
+        tutorialCheckedRef.current = game._id;
+
         // Check if tutorial was already shown for this game
         const tutorialShown = localStorage.getItem(`tutorial_${game._id}`);
         if (!tutorialShown) {
