@@ -8,7 +8,7 @@ import { GameMap } from "@/components/game/GameMap";
 import { StatsBar } from "@/components/game/StatsBar";
 import { LocationDialog } from "@/components/game/LocationDialog";
 import { Button } from "@/components/ui/button";
-import { LocationId, LOCATIONS } from "@/lib/constants";
+import { LocationId, PERSONA_MAPS, KL_MAP } from "@/lib/constants";
 import { Scenario } from "@/lib/types";
 import { motion } from "framer-motion";
 import { Loader2, RotateCcw } from "lucide-react";
@@ -233,6 +233,7 @@ export default function GamePage() {
             currentLocation={game.currentLocation as LocationId}
             onLocationClick={handleLocationClick}
             disabled={game.actionsRemaining <= 0 || isGenerating}
+            personaId={game.personaId}
           />
         </motion.div>
 
@@ -243,7 +244,7 @@ export default function GamePage() {
           className="flex justify-between items-center"
         >
           <div className="text-slate-400 text-sm">
-            Current: {LOCATIONS[game.currentLocation as LocationId].name}
+            Current: {(PERSONA_MAPS[game.personaId] || KL_MAP).locations[game.currentLocation as LocationId].name}
           </div>
 
           <div className="flex gap-2">
@@ -279,6 +280,7 @@ export default function GamePage() {
           isLoading={isGenerating}
           onChoiceSelect={handleChoiceSelect}
           isProcessing={isProcessing}
+          personaId={game.personaId}
         />
       </div>
     </main>

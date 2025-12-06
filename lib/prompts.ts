@@ -1,4 +1,4 @@
-import { LOCATIONS, PERSONAS, NPCS, PersonaId, LocationId } from "./constants";
+import { PERSONAS, NPCS, PersonaId, LocationId, PERSONA_MAPS, KL_MAP } from "./constants";
 
 export const SCENARIO_SYSTEM_PROMPT = `You are the Game Master for a financial life simulator set in Malaysia. You create immersive, emotionally impactful scenarios that teach financial literacy through lived experience.
 
@@ -58,7 +58,8 @@ export function buildScenarioPrompt(params: {
   recentDecisions: { choiceText: string; location: string; week: number }[];
 }): string {
   const persona = PERSONAS[params.personaId];
-  const location = LOCATIONS[params.location];
+  const mapConfig = PERSONA_MAPS[params.personaId] || KL_MAP;
+  const location = mapConfig.locations[params.location];
 
   return `Generate a scenario for this situation:
 
