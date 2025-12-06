@@ -695,6 +695,62 @@ export const getAllDecisions = query({
   },
 });
 
+// Eat at restaurant (no energy cost, only money and health/stress effects)
+export const eatAtRestaurant = mutation({
+  args: {
+    gameId: v.id("games"),
+    moneyCost: v.number(),
+    healthChange: v.number(),
+    stressChange: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const game = await ctx.db.get(args.gameId);
+    if (!game) throw new Error("Game not found");
+
+    // Check if player has enough money
+    if (game.money < args.moneyCost) {
+      throw new Error("Not enough money to eat here");
+    }
+
+    // Apply effects (no energy cost!)
+    const newMoney = game.money - args.moneyCost;
+    const newHealth = Math.min(100, Math.max(0, game.health + args.healthChange));
+    const newStress = Math.min(100, Math.max(0, game.stress + args.stressChange));
+
+    // Check for game over conditions
+    let isGameOver = false;
+    let endingType: string | undefined;
+    let failureReason: string | undefined;
+
+    if (newHealth <= 0) {
+      isGameOver = true;
+      endingType = "health_crisis";
+      failureReason = "Your health has deteriorated to dangerous levels.";
+    } else if (newStress >= 100) {
+      isGameOver = true;
+      endingType = "burnout";
+      failureReason = "The stress has become overwhelming. You've burned out.";
+    }
+
+    await ctx.db.patch(args.gameId, {
+      money: newMoney,
+      health: newHealth,
+      stress: newStress,
+      isGameOver,
+      endingType,
+      failureReason,
+    });
+
+    return {
+      newMoney,
+      newHealth,
+      newStress,
+      isGameOver,
+      endingType,
+    };
+  },
+});
+
 // Reset/delete current game
 export const resetGame = mutation({
   args: { gameId: v.id("games") },

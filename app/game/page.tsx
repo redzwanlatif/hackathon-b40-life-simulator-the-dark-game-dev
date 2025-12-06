@@ -12,15 +12,34 @@ import { WeekendDialog } from "@/components/game/WeekendDialog";
 import { GameOverDialog } from "@/components/game/GameOverDialog";
 import { TutorialDialog } from "@/components/game/TutorialDialog";
 import { LeaveDialog } from "@/components/game/LeaveDialog";
+import { GroceryDialog } from "@/components/game/GroceryDialog";
+import { RestaurantDialog, MenuItem, RESTAURANT_MENUS } from "@/components/game/RestaurantDialog";
 import { Button } from "@/components/ui/button";
+import { useAudio } from "@/components/providers/AudioProvider";
+import { Id } from "@/convex/_generated/dataModel";
 import { LocationId, PERSONA_MAPS, KL_MAP, SPECIAL_EVENTS, WEEKEND_ACTIVITIES, PERSONAS } from "@/lib/constants";
 import { Scenario, SpecialEvent, WeekendActivity } from "@/lib/types";
 import { motion } from "framer-motion";
-import { Loader2, RotateCcw, Calendar } from "lucide-react";
+import { Loader2, RotateCcw, Calendar, CreditCard } from "lucide-react";
+
+const GAME_ID_KEY = "b40_current_game_id";
 
 export default function GamePage() {
   const router = useRouter();
-  const game = useQuery(api.games.getCurrentGame);
+
+  // Get gameId from localStorage to prevent character switching bug
+  const [gameId, setGameId] = useState<Id<"games"> | null>(null);
+  const [hasCheckedStorage, setHasCheckedStorage] = useState(false);
+
+  useEffect(() => {
+    const storedGameId = localStorage.getItem(GAME_ID_KEY);
+    if (storedGameId) {
+      setGameId(storedGameId as Id<"games">);
+    }
+    setHasCheckedStorage(true);
+  }, []);
+
+  const game = useQuery(api.games.getGame, gameId ? { gameId } : "skip");
   const recentDecisions = useQuery(
     api.games.getRecentDecisions,
     game ? { gameId: game._id, limit: 5 } : "skip"
@@ -38,6 +57,7 @@ export default function GamePage() {
   const selectWeekendActivity = useMutation(api.games.selectWeekendActivity);
   const advanceDay = useMutation(api.games.advanceDay);
   const resetGame = useMutation(api.games.resetGame);
+  const eatAtRestaurant = useMutation(api.games.eatAtRestaurant);
   const generateScenario = useAction(api.ai.generateScenario);
   const updateLiveScore = useMutation(api.leaderboard.updateLiveScore);
 
@@ -55,31 +75,39 @@ export default function GamePage() {
   const [pendingEventCheck, setPendingEventCheck] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
+  const [showGroceryDialog, setShowGroceryDialog] = useState(false);
+  const [showRestaurantDialog, setShowRestaurantDialog] = useState(false);
+  const [currentRestaurantName, setCurrentRestaurantName] = useState("");
+
+  // Audio management - set danger mode based on game state
+  const { setDangerMode } = useAudio();
+
+  // Update danger mode when game state changes
+  useEffect(() => {
+    if (game) {
+      const energy = game.energyRemaining ?? 11;
+      const isInDanger = game.health < 30 || game.stress > 70 || energy <= 2;
+      setDangerMode(isInDanger);
+    }
+  }, [game, setDangerMode]);
 
   // Track if we've already checked tutorial for this game session
   const tutorialCheckedRef = useRef<string | null>(null);
 
-  // Show tutorial on first play (week 1, day 1, full energy) - only check once per game
+  // Show tutorial on first play (week 1, day 1) - only check once per game
+  // Fixed: Use specific dependencies to prevent repeated triggers
   useEffect(() => {
     if (!game) return;
-
-    // Only check once per game to prevent repeated popups
     if (tutorialCheckedRef.current === game._id) return;
 
     if (game.currentWeek === 1 && game.currentDay === 1) {
-      const energy = game.energyRemaining ?? 11;
-      if (energy === 11) {
-        // Mark as checked for this game
-        tutorialCheckedRef.current = game._id;
-
-        // Check if tutorial was already shown for this game
-        const tutorialShown = localStorage.getItem(`tutorial_${game._id}`);
-        if (!tutorialShown) {
-          setShowTutorial(true);
-        }
+      tutorialCheckedRef.current = game._id;
+      const tutorialShown = localStorage.getItem(`tutorial_${game._id}`);
+      if (!tutorialShown) {
+        setShowTutorial(true);
       }
     }
-  }, [game]);
+  }, [game?._id, game?.currentWeek, game?.currentDay]);
 
   const handleCloseTutorial = useCallback(() => {
     if (game) {
@@ -88,12 +116,18 @@ export default function GamePage() {
     setShowTutorial(false);
   }, [game]);
 
-  // Redirect if no game
+  // Redirect if no game or no gameId in localStorage (only after checking storage)
   useEffect(() => {
-    if (game === null) {
+    if (!hasCheckedStorage) return; // Wait until we've checked localStorage
+
+    if (game === null || !gameId) {
+      // Clear any stale gameId if game not found
+      if (game === null && gameId) {
+        localStorage.removeItem(GAME_ID_KEY);
+      }
       router.push("/setup");
     }
-  }, [game, router]);
+  }, [game, gameId, router, hasCheckedStorage]);
 
   // Check for game over
   useEffect(() => {
@@ -199,31 +233,68 @@ export default function GamePage() {
     [game, selectWeekendActivity]
   );
 
+  // Check if location is a restaurant
+  const isRestaurantLocation = useCallback((locationId: string) => {
+    return locationId === "fancy_restaurant" || locationId === "restaurant";
+  }, []);
+
   const handleLocationClick = useCallback(
     async (locationId: LocationId) => {
       const energy = game?.energyRemaining ?? 11;
-      if (!game || energy <= 0 || isGenerating) return;
+      if (!game || isGenerating) return;
 
       // Get location info to check objective type
       const mapData = PERSONA_MAPS[game.personaId] || KL_MAP;
       const locationInfo = mapData.locations[locationId];
 
-      // Check if this is a weekend-only location on a weekday
+      // Check if this is a weekend-only location on a weekday (except restaurants which are now daily)
       if (locationInfo?.isWeekendOnly && game.currentDay <= 5) {
         return; // Can't visit weekend locations on weekdays
+      }
+
+      // Handle restaurant clicks - no energy cost, show menu dialog
+      if (isRestaurantLocation(locationId)) {
+        setCurrentRestaurantName(locationInfo?.name || "Restaurant");
+        setShowRestaurantDialog(true);
+        return;
+      }
+
+      // Check energy for non-restaurant locations
+      if (energy <= 0) return;
+
+      // Handle shop/grocery location - show choice dialog instead of auto-complete
+      const objectives = game.weeklyObjectives ?? { boughtGroceries: false };
+      if (locationId === "shop" && !objectives.boughtGroceries) {
+        // If not at shop, move there first (costs energy)
+        if (locationId !== game.currentLocation) {
+          try {
+            await moveToLocation({ gameId: game._id, location: locationId });
+          } catch (error) {
+            console.error("Failed to move to shop:", error);
+            return;
+          }
+        }
+        // Show grocery dialog
+        setShowGroceryDialog(true);
+        return;
       }
 
       // If clicking current location, trigger scenario without moving
       if (locationId === game.currentLocation) {
         // Still check if this location completes an objective (e.g., work at office)
-        if (locationInfo?.objectiveType) {
+        if (locationInfo?.objectiveType && locationInfo.objectiveType !== "groceries") {
           try {
             await completeObjective({
               gameId: game._id,
               objectiveType: locationInfo.objectiveType,
             });
-          } catch {
-            // Objective might already be complete or not applicable
+          } catch (error) {
+            // Show error message to user for debt payment issues
+            if (error instanceof Error && error.message.includes("Not enough money")) {
+              alert("Not enough money to pay debt! You need more cash first.");
+              return;
+            }
+            // Other errors (already complete, etc.) are ignored
           }
         }
 
@@ -261,15 +332,19 @@ export default function GamePage() {
       try {
         await moveToLocation({ gameId: game._id, location: locationId });
 
-        // Check if this location completes an objective
-        if (locationInfo?.objectiveType) {
+        // Check if this location completes an objective (skip groceries - handled by dialog)
+        if (locationInfo?.objectiveType && locationInfo.objectiveType !== "groceries") {
           try {
             await completeObjective({
               gameId: game._id,
               objectiveType: locationInfo.objectiveType,
             });
-          } catch {
-            // Objective might already be complete or not applicable
+          } catch (error) {
+            // Show error message to user for debt payment issues
+            if (error instanceof Error && error.message.includes("Not enough money")) {
+              alert("Not enough money to pay debt! You need more cash first.");
+            }
+            // Other errors (already complete, etc.) are ignored
           }
         }
 
@@ -304,7 +379,7 @@ export default function GamePage() {
         setIsGenerating(false);
       }
     },
-    [game, recentDecisions, isGenerating, moveToLocation, completeObjective, generateScenario]
+    [game, recentDecisions, isGenerating, moveToLocation, completeObjective, generateScenario, isRestaurantLocation]
   );
 
   const handleChoiceSelect = useCallback(
@@ -429,6 +504,67 @@ export default function GamePage() {
     // User will manually navigate to office
   }, []);
 
+  // Handle grocery selection
+  const handleGroceryChoice = useCallback(async (type: "groceries_healthy" | "groceries_unhealthy") => {
+    if (!game) return;
+
+    try {
+      await completeObjective({
+        gameId: game._id,
+        objectiveType: type,
+      });
+      setShowGroceryDialog(false);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("Not enough money")) {
+        alert("Not enough money for groceries!");
+      } else if (error instanceof Error && error.message.includes("Already bought")) {
+        alert("You've already bought groceries this week!");
+        setShowGroceryDialog(false);
+      }
+    }
+  }, [game, completeObjective]);
+
+  // Handle restaurant food selection (no energy cost!)
+  const handleRestaurantChoice = useCallback(async (menuItem: MenuItem) => {
+    if (!game) return;
+
+    try {
+      const result = await eatAtRestaurant({
+        gameId: game._id,
+        moneyCost: menuItem.price,
+        healthChange: menuItem.healthChange,
+        stressChange: menuItem.stressChange,
+      });
+      setShowRestaurantDialog(false);
+
+      if (result.isGameOver) {
+        setShowGameOver(true);
+      }
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("Not enough money")) {
+        alert("Not enough money to eat here!");
+      }
+    }
+  }, [game, eatAtRestaurant]);
+
+  // Handle paying debt at the bank
+  const handlePayDebt = useCallback(async () => {
+    if (!game) return;
+
+    try {
+      await completeObjective({
+        gameId: game._id,
+        objectiveType: "debt",
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("Not enough money")) {
+        alert("Not enough money to pay debt! You need more cash first.");
+      } else if (error instanceof Error && error.message.includes("Already paid")) {
+        alert("You've already paid your debt this week!");
+      }
+    }
+  }, [game, completeObjective]);
+
   const handleResetGame = useCallback(async () => {
     if (!game) return;
     if (!confirm("Reset game and start over?")) return;
@@ -456,7 +592,8 @@ export default function GamePage() {
     router.push("/");
   }, [router]);
 
-  if (game === undefined) {
+  // Show loading while checking localStorage or loading game
+  if (!hasCheckedStorage || game === undefined) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-emerald-400" />
@@ -544,15 +681,30 @@ export default function GamePage() {
               </div>
             )}
 
-            {/* Next Day Button */}
+            {/* Pay Debt Button - shows at bank on week 4 */}
+            {game.currentLocation === "bank" &&
+             game.currentWeek === 4 &&
+             !weeklyObjectives.paidDebt && (
+              <Button
+                onClick={handlePayDebt}
+                className="bg-purple-600 hover:bg-purple-700"
+                disabled={isGenerating || isProcessing}
+              >
+                <CreditCard className="w-4 h-4 mr-2" />
+                Pay Debt (RM{Math.ceil(game.debt / 4)})
+              </Button>
+            )}
+
+            {/* Next Day Button - shows work requirement status */}
             {game.currentDay <= 5 && (
               <Button
                 onClick={handleNextDay}
-                className="bg-blue-600 hover:bg-blue-700"
+                className={game.workedToday ? "bg-blue-600 hover:bg-blue-700" : "bg-amber-600 hover:bg-amber-700"}
                 disabled={isGenerating || isProcessing}
+                title={game.workedToday ? "Proceed to the next day" : "You need to work first! Click to apply leave or go to office."}
               >
                 <Calendar className="w-4 h-4 mr-2" />
-                Next Day
+                {game.workedToday ? "Next Day" : "End Day (Work Required)"}
               </Button>
             )}
 
@@ -649,6 +801,24 @@ export default function GamePage() {
           onClose={() => setShowLeaveDialog(false)}
           onApplyLeave={handleApplyLeave}
           onGoToWork={handleGoToWork}
+        />
+
+        {/* Grocery Dialog */}
+        <GroceryDialog
+          isOpen={showGroceryDialog}
+          onClose={() => setShowGroceryDialog(false)}
+          onSelectGroceries={handleGroceryChoice}
+          currentMoney={game.money}
+        />
+
+        {/* Restaurant Dialog */}
+        <RestaurantDialog
+          isOpen={showRestaurantDialog}
+          onClose={() => setShowRestaurantDialog(false)}
+          onSelectFood={handleRestaurantChoice}
+          currentMoney={game.money}
+          personaId={game.personaId}
+          restaurantName={currentRestaurantName}
         />
       </div>
     </main>

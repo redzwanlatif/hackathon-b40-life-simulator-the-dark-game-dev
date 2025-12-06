@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { AlertTriangle, Zap, Target, Calendar, Skull, ArrowRight } from "lucide-react";
+import { AlertTriangle, Zap, Target, Calendar, Skull, ArrowRight, UtensilsCrossed } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 
@@ -74,6 +74,24 @@ export function TutorialDialog({ isOpen, onClose, personaName }: TutorialDialogP
         <div className="space-y-3">
           <p>After completing objectives, choose a <span className="text-purple-400 font-bold">weekend activity</span>.</p>
           <p>You can <span className="text-orange-400">skip</span> (free but +15% stress) or <span className="text-emerald-400">spend money</span> to relax.</p>
+        </div>
+      ),
+    },
+    {
+      title: "Restaurant (No Energy)",
+      icon: UtensilsCrossed,
+      color: "text-orange-400",
+      content: (
+        <div className="space-y-3">
+          <p>The <span className="text-orange-400 font-bold">Restaurant</span> is special:</p>
+          <div className="bg-cyan-900/30 border border-cyan-500/30 rounded-lg p-3 space-y-2">
+            <div className="flex items-center gap-2">
+              <Zap className="w-4 h-4 text-cyan-400" />
+              <span className="text-cyan-300">Does NOT use energy!</span>
+            </div>
+            <p className="text-sm text-slate-300">Just costs money and affects your health/stress based on what you eat.</p>
+          </div>
+          <p className="text-sm text-slate-400">Visit anytime to manage stress - the menu shows calories and nutrition info!</p>
         </div>
       ),
     },

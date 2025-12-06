@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, Press_Start_2P } from "next/font/google";
 import "./globals.css";
 import { ConvexProvider } from "@/components/providers/ConvexProvider";
+import { AudioProvider } from "@/components/providers/AudioProvider";
 import { Header } from "@/components/Header";
+import { GlobalSettings } from "@/components/game/GlobalSettings";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -36,10 +38,13 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} ${pressStart2P.variable} antialiased`}
       >
         <ConvexProvider>
-          <Header />
-          <div className="pt-12">
-            {children}
-          </div>
+          <AudioProvider>
+            <Header />
+            <div className="pt-12">
+              {children}
+            </div>
+            <GlobalSettings />
+          </AudioProvider>
         </ConvexProvider>
       </body>
     </html>

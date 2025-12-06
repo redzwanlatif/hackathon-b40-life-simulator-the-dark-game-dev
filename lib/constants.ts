@@ -88,11 +88,11 @@ export const KL_MAP: MapConfig = {
     bank: {
       id: "bank",
       name: "Maybank",
-      description: "Maybank branch for debt payments",
+      description: "Maybank branch - check credit score or pay debt",
       x: 92,
       y: 15,
       icon: "🏦",
-      objectiveType: "debt",
+      // No auto objectiveType - debt payment is manual via button
     },
     // New locations
     post_office: {
@@ -106,11 +106,10 @@ export const KL_MAP: MapConfig = {
     fancy_restaurant: {
       id: "fancy_restaurant",
       name: "Restaurant",
-      description: "Nice restaurant in Bangsar for weekend treats",
+      description: "Nice restaurant in Bangsar for meals",
       x: 65,
       y: 15,
       icon: "🍽️",
-      isWeekendOnly: true,
     },
     fancy_cafe: {
       id: "fancy_cafe",
@@ -201,11 +200,11 @@ export const PENANG_MAP: MapConfig = {
     bank: {
       id: "bank",
       name: "Bank",
-      description: "Bank beside TNB office",
+      description: "Bank beside TNB office - check credit score or pay debt",
       x: 50,
       y: 15,
       icon: "🏦",
-      objectiveType: "debt",
+      // No auto objectiveType - debt payment is manual via button
     },
     // New locations
     post_office: {
@@ -219,11 +218,10 @@ export const PENANG_MAP: MapConfig = {
     restaurant: {
       id: "restaurant",
       name: "Restoran",
-      description: "Family-friendly restaurant for weekend meals with your child",
+      description: "Family-friendly restaurant for meals with your child",
       x: 65,
       y: 15,
       icon: "🍽️",
-      isWeekendOnly: true,
     },
     shopping_mall: {
       id: "shopping_mall",

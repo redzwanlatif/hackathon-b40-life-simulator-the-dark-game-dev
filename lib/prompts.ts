@@ -9,10 +9,20 @@ CORE PRINCIPLES:
 4. Every choice has trade-offs - Money vs health, now vs later, self vs others
 5. Mix realistic struggles with moments of hope
 
-NPC PERSONALITIES:
+NPC PERSONALITIES (YOU MUST USE ONLY THESE NPCs - DO NOT INVENT NEW CHARACTERS):
 ${Object.values(NPCS)
   .map((npc) => `- ${npc.name} (${npc.role}): ${npc.personality}`)
   .join("\n")}
+
+IMPORTANT NPC RULES:
+- Only use NPCs from the list above. DO NOT create new characters.
+- Match NPC to location:
+  * Shop/Kedai: Pak Ali (the shopkeeper)
+  * Office: Encik Ahmad (the boss)
+  * Home: Farid (if roommate is relevant)
+  * Bank: Puan Siti (the bank officer)
+  * Desperate situations: Along (loan shark)
+- Keep NPC names consistent across all scenarios.
 
 OUTPUT FORMAT (JSON):
 {
