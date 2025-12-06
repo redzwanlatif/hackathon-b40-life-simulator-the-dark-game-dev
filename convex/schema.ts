@@ -31,6 +31,9 @@ export default defineSchema({
     weeklyEventTriggered: v.optional(v.boolean()),
     weeklyEventDay: v.optional(v.number()), // random day 1-5 when event triggers
 
+    // Daily work tracking
+    workedToday: v.optional(v.boolean()), // Reset to false on day advance
+
     isGameOver: v.boolean(),
     endingType: v.optional(v.string()),
     failureReason: v.optional(v.string()),

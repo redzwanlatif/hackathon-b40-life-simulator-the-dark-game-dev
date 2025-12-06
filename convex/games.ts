@@ -75,6 +75,7 @@ export const createGame = mutation({
       },
       weeklyEventTriggered: false,
       weeklyEventDay: getRandomEventDay(),
+      workedToday: false, // Track daily work
       isGameOver: false,
     });
 
@@ -179,17 +180,15 @@ export const completeObjective = mutation({
 
     switch (args.objectiveType) {
       case "work":
-        // Can only work on weekdays (day 1-5) and max 5 times per week
-        if (game.currentDay > 5) {
-          throw new Error("Cannot work on weekends");
+        // Can only work once per day
+        if (game.workedToday) {
+          throw new Error("Already worked today");
         }
+        // Can only work max 5 times per week
         if (objectives.workDaysCompleted >= 5) {
           throw new Error("Already completed all work days for this week");
         }
-        // Can only work once per day (if workDaysCompleted >= currentDay, already worked today)
-        if (objectives.workDaysCompleted >= game.currentDay) {
-          throw new Error("Already worked today");
-        }
+        updates.workedToday = true;
         updates.weeklyObjectives = {
           ...objectives,
           workDaysCompleted: objectives.workDaysCompleted + 1,
@@ -379,10 +378,33 @@ export const checkWeekComplete = query({
 
 // Advance to the next day
 export const advanceDay = mutation({
-  args: { gameId: v.id("games") },
+  args: {
+    gameId: v.id("games"),
+    applyLeave: v.optional(v.boolean()), // If true, skip work with penalty
+  },
   handler: async (ctx, args) => {
     const game = await ctx.db.get(args.gameId);
     if (!game) throw new Error("Game not found");
+
+    // Check if worked today (required on weekdays 1-5)
+    if (game.currentDay <= 5 && !game.workedToday && !args.applyLeave) {
+      return {
+        canAdvance: false,
+        reason: "work_required",
+        message: "You haven't worked today! Go to office or apply leave.",
+      };
+    }
+
+    // Apply leave penalty if skipping work
+    let stressChange = 0;
+    let healthChange = 0;
+    let creditChange = 0;
+
+    if (args.applyLeave && !game.workedToday) {
+      stressChange = 15; // +15% stress (guilt/anxiety)
+      healthChange = -5; // -5% health
+      creditChange = -5; // -5 credit score (seen as unreliable)
+    }
 
     const newDay = game.currentDay + 1;
 
@@ -390,6 +412,7 @@ export const advanceDay = mutation({
     if (newDay > 5) {
       // Don't advance past day 5 - weekend dialog should handle this
       return {
+        canAdvance: true,
         newDay: 5,
         newWeek: game.currentWeek,
         isWeekend: true,
@@ -397,15 +420,45 @@ export const advanceDay = mutation({
       };
     }
 
+    // Apply changes and advance
+    const newStress = Math.min(100, Math.max(0, game.stress + stressChange));
+    const newHealth = Math.min(100, Math.max(0, game.health + healthChange));
+    const newCreditScore = Math.min(850, Math.max(300, game.creditScore + creditChange));
+
+    // Check for game over from leave penalty
+    let isGameOver = false;
+    let endingType: string | undefined;
+    let failureReason: string | undefined;
+
+    if (newHealth <= 0) {
+      isGameOver = true;
+      endingType = "health_crisis";
+      failureReason = "Your health has deteriorated to dangerous levels.";
+    } else if (newStress >= 100) {
+      isGameOver = true;
+      endingType = "burnout";
+      failureReason = "The stress has become overwhelming. You've burned out.";
+    }
+
     await ctx.db.patch(args.gameId, {
       currentDay: newDay,
+      workedToday: false, // Reset for new day
+      stress: newStress,
+      health: newHealth,
+      creditScore: newCreditScore,
+      isGameOver,
+      endingType,
+      failureReason,
     });
 
     return {
+      canAdvance: true,
       newDay,
       newWeek: game.currentWeek,
       isWeekend: false,
       shouldShowWeekendDialog: false,
+      appliedLeave: args.applyLeave && !game.workedToday,
+      isGameOver,
     };
   },
 });
@@ -495,6 +548,7 @@ export const selectWeekendActivity = mutation({
       },
       weeklyEventTriggered: false,
       weeklyEventDay: getRandomEventDay(),
+      workedToday: false, // Reset for new week
       isGameOver,
       endingType,
       failureReason,

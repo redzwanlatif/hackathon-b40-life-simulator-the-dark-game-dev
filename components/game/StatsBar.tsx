@@ -24,6 +24,7 @@ interface StatsBarProps {
   week: number;
   energyRemaining: number;
   weeklyObjectives: WeeklyObjectives;
+  workedToday?: boolean;
 }
 
 export function StatsBar({
@@ -36,6 +37,7 @@ export function StatsBar({
   week,
   energyRemaining,
   weeklyObjectives,
+  workedToday,
 }: StatsBarProps) {
   const [prevMoney, setPrevMoney] = useState(money);
   const [moneyDiff, setMoneyDiff] = useState(0);
@@ -106,7 +108,9 @@ export function StatsBar({
       <ObjectivesPanel
         objectives={weeklyObjectives}
         currentWeek={week}
+        currentDay={day}
         energy={energyRemaining}
+        workedToday={workedToday}
       />
 
       {/* Money and Debt Row */}

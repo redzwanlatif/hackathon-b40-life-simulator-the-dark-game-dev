@@ -13,21 +13,29 @@ interface WeeklyObjectives {
 interface ObjectivesPanelProps {
   objectives: WeeklyObjectives;
   currentWeek: number;
+  currentDay: number;
   energy: number;
+  workedToday?: boolean;
 }
 
-export function ObjectivesPanel({ objectives, currentWeek, energy }: ObjectivesPanelProps) {
+export function ObjectivesPanel({ objectives, currentWeek, currentDay, energy, workedToday }: ObjectivesPanelProps) {
   const workComplete = objectives.workDaysCompleted >= 5;
   const debtRequired = currentWeek === 4;
+
+  // Show today's work status for the work objective
+  const todayWorkStatus = currentDay <= 5
+    ? (workedToday ? " (Today: Done)" : " (Today: Pending)")
+    : "";
 
   const objectivesList = [
     {
       id: "work",
       label: "Work",
-      progress: `${objectives.workDaysCompleted}/5 days`,
+      progress: `${objectives.workDaysCompleted}/5 days${todayWorkStatus}`,
       complete: workComplete,
       icon: Briefcase,
       required: true,
+      todayPending: currentDay <= 5 && !workedToday && !workComplete,
     },
     {
       id: "groceries",
@@ -74,6 +82,7 @@ export function ObjectivesPanel({ objectives, currentWeek, energy }: ObjectivesP
       <div className="space-y-2">
         {objectivesList.map((objective) => {
           const Icon = objective.icon;
+          const isTodayPending = 'todayPending' in objective && objective.todayPending;
           return (
             <motion.div
               key={objective.id}
@@ -82,23 +91,29 @@ export function ObjectivesPanel({ objectives, currentWeek, energy }: ObjectivesP
               className={`flex items-center gap-2 p-2 rounded-md ${
                 objective.complete
                   ? "bg-emerald-900/30 border border-emerald-500/30"
-                  : "bg-slate-700/50"
+                  : isTodayPending
+                    ? "bg-amber-900/30 border border-amber-500/30"
+                    : "bg-slate-700/50"
               }`}
             >
               {objective.complete ? (
                 <CheckCircle2 className="w-4 h-4 text-emerald-400" />
               ) : (
-                <Circle className={`w-4 h-4 ${lowEnergy ? "text-red-400" : "text-slate-500"}`} />
+                <Circle className={`w-4 h-4 ${
+                  isTodayPending ? "text-amber-400" : lowEnergy ? "text-red-400" : "text-slate-500"
+                }`} />
               )}
-              <Icon className={`w-4 h-4 ${objective.complete ? "text-emerald-400" : "text-slate-400"}`} />
+              <Icon className={`w-4 h-4 ${
+                objective.complete ? "text-emerald-400" : isTodayPending ? "text-amber-400" : "text-slate-400"
+              }`} />
               <span className={`text-sm flex-1 ${
-                objective.complete ? "text-emerald-300 line-through" : "text-slate-300"
+                objective.complete ? "text-emerald-300 line-through" : isTodayPending ? "text-amber-300" : "text-slate-300"
               }`}>
                 {objective.label}
               </span>
               {objective.progress && (
                 <span className={`text-xs font-mono ${
-                  objective.complete ? "text-emerald-400" : "text-slate-500"
+                  objective.complete ? "text-emerald-400" : isTodayPending ? "text-amber-400" : "text-slate-500"
                 }`}>
                   {objective.progress}
                 </span>

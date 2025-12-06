@@ -11,11 +11,12 @@ import { SpecialEventDialog } from "@/components/game/SpecialEventDialog";
 import { WeekendDialog } from "@/components/game/WeekendDialog";
 import { GameOverDialog } from "@/components/game/GameOverDialog";
 import { TutorialDialog } from "@/components/game/TutorialDialog";
+import { LeaveDialog } from "@/components/game/LeaveDialog";
 import { Button } from "@/components/ui/button";
 import { LocationId, PERSONA_MAPS, KL_MAP, SPECIAL_EVENTS, WEEKEND_ACTIVITIES, PERSONAS } from "@/lib/constants";
 import { Scenario, SpecialEvent, WeekendActivity } from "@/lib/types";
 import { motion } from "framer-motion";
-import { Loader2, RotateCcw } from "lucide-react";
+import { Loader2, RotateCcw, Calendar } from "lucide-react";
 
 export default function GamePage() {
   const router = useRouter();
@@ -53,6 +54,7 @@ export default function GamePage() {
   const [showGameOver, setShowGameOver] = useState(false);
   const [pendingEventCheck, setPendingEventCheck] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
+  const [showLeaveDialog, setShowLeaveDialog] = useState(false);
 
   // Show tutorial on first play (week 1, day 1, full energy)
   useEffect(() => {
@@ -202,6 +204,18 @@ export default function GamePage() {
 
       // If clicking current location, trigger scenario without moving
       if (locationId === game.currentLocation) {
+        // Still check if this location completes an objective (e.g., work at office)
+        if (locationInfo?.objectiveType) {
+          try {
+            await completeObjective({
+              gameId: game._id,
+              objectiveType: locationInfo.objectiveType,
+            });
+          } catch {
+            // Objective might already be complete or not applicable
+          }
+        }
+
         setDialogOpen(true);
         setIsGenerating(true);
 
@@ -353,32 +367,56 @@ export default function GamePage() {
     [game, currentScenario, isProcessing, pendingEventCheck, recordDecision, updateGameState, updateLiveScore, checkForRandomEvent]
   );
 
-  const handleAdvanceDay = useCallback(async () => {
+  // Handle Next Day button click
+  const handleNextDay = useCallback(async () => {
     if (!game) return;
-
-    // Check if objectives are complete and we're on day 5
-    if (game.currentDay === 5 && weekComplete?.complete) {
-      setShowWeekendDialog(true);
-      return;
-    }
-
-    // Check if energy is depleted but objectives incomplete
-    const energy = game.energyRemaining ?? 11;
-    if (energy <= 0 && !weekComplete?.complete) {
-      // Game over - ran out of energy without completing objectives
-      setShowGameOver(true);
-      return;
-    }
 
     try {
       const result = await advanceDay({ gameId: game._id });
+
+      if (!result.canAdvance) {
+        // Show leave dialog - work not done
+        setShowLeaveDialog(true);
+        return;
+      }
+
       if (result.shouldShowWeekendDialog) {
         setShowWeekendDialog(true);
+      }
+
+      if (result.isGameOver) {
+        setShowGameOver(true);
       }
     } catch (error) {
       console.error("Failed to advance day:", error);
     }
-  }, [game, weekComplete, advanceDay]);
+  }, [game, advanceDay]);
+
+  // Handle applying leave (skip work with penalty)
+  const handleApplyLeave = useCallback(async () => {
+    if (!game) return;
+
+    try {
+      const result = await advanceDay({ gameId: game._id, applyLeave: true });
+      setShowLeaveDialog(false);
+
+      if (result.shouldShowWeekendDialog) {
+        setShowWeekendDialog(true);
+      }
+
+      if (result.isGameOver) {
+        setShowGameOver(true);
+      }
+    } catch (error) {
+      console.error("Failed to apply leave:", error);
+    }
+  }, [game, advanceDay]);
+
+  // Handle go to work from leave dialog
+  const handleGoToWork = useCallback(() => {
+    setShowLeaveDialog(false);
+    // User will manually navigate to office
+  }, []);
 
   const handleResetGame = useCallback(async () => {
     if (!game) return;
@@ -454,6 +492,7 @@ export default function GamePage() {
             week={game.currentWeek}
             energyRemaining={energyRemaining}
             weeklyObjectives={weeklyObjectives}
+            workedToday={game.workedToday}
           />
         </motion.div>
 
@@ -482,7 +521,30 @@ export default function GamePage() {
             Current: {(PERSONA_MAPS[game.personaId] || KL_MAP).locations[game.currentLocation as LocationId]?.name || "Unknown"}
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
+            {/* Work status indicator */}
+            {game.currentDay <= 5 && (
+              <div className={`text-xs px-2 py-1 rounded ${
+                game.workedToday
+                  ? "bg-emerald-500/20 text-emerald-400"
+                  : "bg-amber-500/20 text-amber-400"
+              }`}>
+                {game.workedToday ? "Worked Today" : "Not Worked Yet"}
+              </div>
+            )}
+
+            {/* Next Day Button */}
+            {game.currentDay <= 5 && (
+              <Button
+                onClick={handleNextDay}
+                className="bg-blue-600 hover:bg-blue-700"
+                disabled={isGenerating || isProcessing}
+              >
+                <Calendar className="w-4 h-4 mr-2" />
+                Next Day
+              </Button>
+            )}
+
             {energyRemaining <= 0 && game.currentDay === 5 && weekComplete?.complete && (
               <Button
                 onClick={() => setShowWeekendDialog(true)}
@@ -568,6 +630,14 @@ export default function GamePage() {
           isOpen={showTutorial}
           onClose={handleCloseTutorial}
           personaName={PERSONAS[game.personaId as keyof typeof PERSONAS]?.name || "Player"}
+        />
+
+        {/* Leave Dialog */}
+        <LeaveDialog
+          isOpen={showLeaveDialog}
+          onClose={() => setShowLeaveDialog(false)}
+          onApplyLeave={handleApplyLeave}
+          onGoToWork={handleGoToWork}
         />
       </div>
     </main>
