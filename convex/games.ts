@@ -186,6 +186,10 @@ export const completeObjective = mutation({
         if (objectives.workDaysCompleted >= 5) {
           throw new Error("Already completed all work days for this week");
         }
+        // Can only work once per day (if workDaysCompleted >= currentDay, already worked today)
+        if (objectives.workDaysCompleted >= game.currentDay) {
+          throw new Error("Already worked today");
+        }
         updates.weeklyObjectives = {
           ...objectives,
           workDaysCompleted: objectives.workDaysCompleted + 1,

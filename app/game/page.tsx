@@ -292,32 +292,37 @@ export default function GamePage() {
       setIsProcessing(true);
 
       try {
-        // Record the decision
+        // Record the decision (provide defaults for potentially undefined values)
+        const moneyChange = choice.consequence.money ?? 0;
+        const creditChange = choice.consequence.credit ?? 0;
+        const healthChange = choice.consequence.health ?? 0;
+        const stressChange = choice.consequence.stress ?? 0;
+
         await recordDecision({
           gameId: game._id,
           location: currentScenario.location,
           scenarioId: currentScenario.id,
           choiceIndex,
           choiceText: choice.text,
-          moneyChange: choice.consequence.money,
-          creditChange: choice.consequence.credit,
-          healthChange: choice.consequence.health,
-          stressChange: choice.consequence.stress,
+          moneyChange,
+          creditChange,
+          healthChange,
+          stressChange,
           hiddenConsequence: choice.hiddenConsequence,
         });
 
         // Update game state
         const result = await updateGameState({
           gameId: game._id,
-          moneyChange: choice.consequence.money,
-          creditChange: choice.consequence.credit,
-          healthChange: choice.consequence.health,
-          stressChange: choice.consequence.stress,
+          moneyChange,
+          creditChange,
+          healthChange,
+          stressChange,
         });
 
         // Update live leaderboard score
         if (game.playerName) {
-          const newMoney = game.money + choice.consequence.money;
+          const newMoney = game.money + moneyChange;
           await updateLiveScore({
             gameId: game._id,
             playerName: game.playerName,
