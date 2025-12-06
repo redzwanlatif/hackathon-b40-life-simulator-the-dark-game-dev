@@ -63,6 +63,26 @@ export async function execute(
   }
 }
 
+// Helper to execute operations within a transaction
+export async function withTransaction<T>(
+  callback: (connection: mysql.PoolConnection) => Promise<T>
+): Promise<T> {
+  const connection = await getPool().getConnection();
+  try {
+    await connection.beginTransaction();
+    try {
+      const result = await callback(connection);
+      await connection.commit();
+      return result;
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    }
+  } finally {
+    connection.release();
+  }
+}
+
 // Types for analytics data
 export interface CompletedGame {
   id?: number;
@@ -151,6 +171,17 @@ export async function syncPlayerDecisions(
 ): Promise<void> {
   if (decisions.length === 0) return;
 
+  // Ensure all decisions share the same convex_game_id
+  const gameIds = new Set(decisions.map((d) => d.convex_game_id));
+  if (gameIds.size !== 1) {
+    throw new Error(
+      `All decisions must share the same convex_game_id. Found: ${Array.from(gameIds).join(", ")}`
+    );
+  }
+
+  const convexGameId = decisions[0].convex_game_id;
+
+  // Prepare values for batch insert
   const values = decisions.map((d) => [
     d.convex_game_id,
     d.location,
@@ -168,13 +199,23 @@ export async function syncPlayerDecisions(
   const placeholders = values.map(() => "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").join(", ");
   const flatValues = values.flat();
 
-  await execute(
-    `INSERT INTO player_decisions 
-     (convex_game_id, location, scenario_id, choice_index, choice_text, 
-      money_change, credit_change, health_change, stress_change, day, week)
-     VALUES ${placeholders}`,
-    flatValues
-  );
+  // Use transaction to ensure atomicity: delete existing + insert new
+  await withTransaction(async (connection) => {
+    // Delete existing decisions for this game_id to make operation idempotent
+    await connection.execute(
+      `DELETE FROM player_decisions WHERE convex_game_id = ?`,
+      [convexGameId]
+    );
+
+    // Insert the new batch
+    await connection.execute(
+      `INSERT INTO player_decisions 
+       (convex_game_id, location, scenario_id, choice_index, choice_text, 
+        money_change, credit_change, health_change, stress_change, day, week)
+       VALUES ${placeholders}`,
+      flatValues
+    );
+  });
 }
 
 export async function getGlobalStats(): Promise<{
