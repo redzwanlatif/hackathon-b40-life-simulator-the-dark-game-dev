@@ -116,6 +116,28 @@ export interface PlayerDecision {
   created_at?: Date;
 }
 
+export interface WeeklySnapshot {
+  id?: number;
+  convex_game_id: string;
+  player_name: string;
+  persona_id: string;
+  week: number;
+  money: number;
+  debt: number;
+  credit_score: number;
+  health: number;
+  stress: number;
+  objectives_completed: boolean;
+  work_days_completed: number;
+  bought_groceries: boolean;
+  filled_petrol: boolean;
+  paid_debt: boolean;
+  weekend_activity?: string;
+  is_game_over: boolean;
+  ending_type?: string;
+  created_at?: Date;
+}
+
 export interface PersonaStats {
   persona_id: string;
   total_games: number;
@@ -218,6 +240,50 @@ export async function syncPlayerDecisions(
   });
 }
 
+export async function syncWeeklySnapshot(snapshot: WeeklySnapshot): Promise<number> {
+  const result = await execute(
+    `INSERT INTO weekly_snapshots
+     (convex_game_id, player_name, persona_id, week, money, debt, credit_score,
+      health, stress, objectives_completed, work_days_completed, bought_groceries,
+      filled_petrol, paid_debt, weekend_activity, is_game_over, ending_type)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE
+       money = VALUES(money),
+       debt = VALUES(debt),
+       credit_score = VALUES(credit_score),
+       health = VALUES(health),
+       stress = VALUES(stress),
+       objectives_completed = VALUES(objectives_completed),
+       work_days_completed = VALUES(work_days_completed),
+       bought_groceries = VALUES(bought_groceries),
+       filled_petrol = VALUES(filled_petrol),
+       paid_debt = VALUES(paid_debt),
+       weekend_activity = VALUES(weekend_activity),
+       is_game_over = VALUES(is_game_over),
+       ending_type = VALUES(ending_type)`,
+    [
+      snapshot.convex_game_id,
+      snapshot.player_name,
+      snapshot.persona_id,
+      snapshot.week,
+      snapshot.money,
+      snapshot.debt,
+      snapshot.credit_score,
+      snapshot.health,
+      snapshot.stress,
+      snapshot.objectives_completed,
+      snapshot.work_days_completed,
+      snapshot.bought_groceries,
+      snapshot.filled_petrol,
+      snapshot.paid_debt,
+      snapshot.weekend_activity || null,
+      snapshot.is_game_over,
+      snapshot.ending_type || null,
+    ]
+  );
+  return result.insertId;
+}
+
 export async function getGlobalStats(): Promise<{
   totalGames: number;
   avgFinalMoney: number;
@@ -289,8 +355,10 @@ export async function getEnhancedLeaderboard(limit: number = 50): Promise<
     created_at: Date;
   }>
 > {
+  // Sanitize limit to be a positive integer
+  const safeLimit = Math.max(1, Math.min(1000, Math.floor(Number(limit) || 50)));
   return query(
-    `SELECT 
+    `SELECT
        ROW_NUMBER() OVER (ORDER BY final_money DESC) as \`rank\`,
        player_name,
        persona_id,
@@ -301,8 +369,7 @@ export async function getEnhancedLeaderboard(limit: number = 50): Promise<
        created_at
      FROM completed_games
      ORDER BY final_money DESC
-     LIMIT ?`,
-    [limit]
+     LIMIT ${safeLimit}`
   );
 }
 
@@ -334,11 +401,144 @@ export async function exportResearchData(): Promise<
   Array<CompletedGame & { decisions_count: number }>
 > {
   return query(
-    `SELECT 
+    `SELECT
        cg.*,
        (SELECT COUNT(*) FROM player_decisions pd WHERE pd.convex_game_id = cg.convex_game_id) as decisions_count
      FROM completed_games cg
      ORDER BY cg.created_at DESC`
   );
+}
+
+// Get weekly progression analytics from weekly_snapshots
+export async function getWeeklyProgression(): Promise<
+  Array<{
+    week: number;
+    total_snapshots: number;
+    avg_money: number;
+    avg_health: number;
+    avg_stress: number;
+    objectives_completion_rate: number;
+    dropout_count: number;
+  }>
+> {
+  return query(
+    `SELECT
+       week,
+       COUNT(*) as total_snapshots,
+       AVG(money) as avg_money,
+       AVG(health) as avg_health,
+       AVG(stress) as avg_stress,
+       (SUM(CASE WHEN objectives_completed = TRUE THEN 1 ELSE 0 END) * 100.0 / COUNT(*)) as objectives_completion_rate,
+       SUM(CASE WHEN is_game_over = TRUE THEN 1 ELSE 0 END) as dropout_count
+     FROM weekly_snapshots
+     GROUP BY week
+     ORDER BY week`
+  );
+}
+
+// Get key insights for dashboard
+export async function getKeyInsights(): Promise<{
+  totalDecisions: number;
+  unhealthyFoodRate: number;
+  weekendSkipRate: number;
+  avgWeekDropout: number;
+  overtimeAcceptRate: number;
+  debtPaymentRate: number;
+}> {
+  // Get total decisions
+  const totalResult = await queryOne<{ count: number }>(
+    "SELECT COUNT(*) as count FROM player_decisions"
+  );
+
+  // Get unhealthy food choice rate
+  const unhealthyResult = await queryOne<{ rate: number }>(
+    `SELECT
+       (SUM(CASE WHEN choice_text LIKE '%instant noodles%' OR choice_text LIKE '%unhealthy%' THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0)) as rate
+     FROM player_decisions
+     WHERE location = 'shop'`
+  );
+
+  // Get weekend skip rate
+  const skipResult = await queryOne<{ rate: number }>(
+    `SELECT
+       (SUM(CASE WHEN weekend_activity = 'skip' THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0)) as rate
+     FROM weekly_snapshots`
+  );
+
+  // Get average week of dropout
+  const dropoutResult = await queryOne<{ avg_week: number }>(
+    `SELECT AVG(weeks_completed) as avg_week
+     FROM completed_games
+     WHERE ending_type != 'survived' AND ending_type != 'success'`
+  );
+
+  // Get overtime acceptance rate
+  const overtimeResult = await queryOne<{ rate: number }>(
+    `SELECT
+       (SUM(CASE WHEN choice_text LIKE '%overtime%' OR choice_text LIKE '%Accept the overtime%' THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0)) as rate
+     FROM player_decisions
+     WHERE location = 'office'`
+  );
+
+  // Get debt payment rate (week 4)
+  const debtResult = await queryOne<{ rate: number }>(
+    `SELECT
+       (SUM(CASE WHEN paid_debt = TRUE THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0)) as rate
+     FROM weekly_snapshots
+     WHERE week = 4`
+  );
+
+  return {
+    totalDecisions: totalResult?.count || 0,
+    unhealthyFoodRate: Math.round(unhealthyResult?.rate || 0),
+    weekendSkipRate: Math.round(skipResult?.rate || 0),
+    avgWeekDropout: dropoutResult?.avg_week || 0,
+    overtimeAcceptRate: Math.round(overtimeResult?.rate || 0),
+    debtPaymentRate: Math.round(debtResult?.rate || 0),
+  };
+}
+
+// Get survival funnel data
+export async function getSurvivalFunnel(): Promise<
+  Array<{
+    week: number;
+    started: number;
+    survived: number;
+    survival_rate: number;
+  }>
+> {
+  // Get count of games that reached each week
+  const weekCounts = await query<{ week: number; count: number }>(
+    `SELECT week, COUNT(DISTINCT convex_game_id) as count
+     FROM weekly_snapshots
+     GROUP BY week
+     ORDER BY week`
+  );
+
+  // Get count of games that ended at each week
+  const endCounts = await query<{ week: number; ended: number }>(
+    `SELECT week, COUNT(*) as ended
+     FROM weekly_snapshots
+     WHERE is_game_over = TRUE
+     GROUP BY week`
+  );
+
+  const endMap = new Map(endCounts.map(e => [e.week, e.ended]));
+
+  let previousCount = weekCounts[0]?.count || 0;
+
+  return weekCounts.map((wc, index) => {
+    const ended = endMap.get(wc.week) || 0;
+    const survived = wc.count - ended;
+    const survivalRate = previousCount > 0 ? (survived / previousCount) * 100 : 100;
+    previousCount = survived;
+
+    return {
+      week: wc.week,
+      started: wc.count,
+      survived,
+      survival_rate: Math.round(survivalRate),
+    };
+  });
 }
 

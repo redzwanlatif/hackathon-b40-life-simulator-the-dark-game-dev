@@ -262,8 +262,10 @@ export const completeObjective = mutation({
         if (objectives.paidDebt) {
           throw new Error("Already paid debt this week");
         }
-        // Calculate debt payment (monthly payment = debt / 4 for 4 weeks)
-        const debtPayment = Math.ceil(game.debt / 4);
+        // Calculate debt payment - realistic monthly installment
+        // PTPTN/loans typically paid over 5-10 years, so ~5% of total debt per month
+        // Fresh Grad: RM30k → RM500, Single Parent: RM7k → RM350
+        const debtPayment = Math.max(200, Math.ceil(game.debt * 0.05));
         if (game.money < debtPayment) {
           throw new Error("Not enough money to pay debt");
         }

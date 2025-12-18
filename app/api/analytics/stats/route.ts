@@ -4,6 +4,9 @@ import {
   getPersonaStats,
   getFailurePatterns,
   getDecisionAnalytics,
+  getWeeklyProgression,
+  getKeyInsights,
+  getSurvivalFunnel,
 } from "@/lib/tidb";
 
 // GET /api/analytics/stats
@@ -11,13 +14,23 @@ import {
 export async function GET() {
   try {
     // Fetch all analytics data in parallel
-    const [globalStats, personaStats, failurePatterns, decisionAnalytics] =
-      await Promise.all([
-        getGlobalStats(),
-        getPersonaStats(),
-        getFailurePatterns(),
-        getDecisionAnalytics(),
-      ]);
+    const [
+      globalStats,
+      personaStats,
+      failurePatterns,
+      decisionAnalytics,
+      weeklyProgression,
+      keyInsights,
+      survivalFunnel,
+    ] = await Promise.all([
+      getGlobalStats(),
+      getPersonaStats(),
+      getFailurePatterns(),
+      getDecisionAnalytics(),
+      getWeeklyProgression(),
+      getKeyInsights(),
+      getSurvivalFunnel(),
+    ]);
 
     return NextResponse.json({
       success: true,
@@ -26,6 +39,9 @@ export async function GET() {
         byPersona: personaStats,
         failures: failurePatterns,
         decisions: decisionAnalytics,
+        weeklyProgression,
+        keyInsights,
+        survivalFunnel,
       },
     });
   } catch (error) {
@@ -46,6 +62,16 @@ export async function GET() {
           byPersona: [],
           failures: [],
           decisions: [],
+          weeklyProgression: [],
+          keyInsights: {
+            totalDecisions: 0,
+            unhealthyFoodRate: 0,
+            weekendSkipRate: 0,
+            avgWeekDropout: 0,
+            overtimeAcceptRate: 0,
+            debtPaymentRate: 0,
+          },
+          survivalFunnel: [],
         },
       });
     }

@@ -115,7 +115,7 @@ export default function LeaderboardPage() {
           <Button
             variant={!showAnalytics ? "default" : "outline"}
             onClick={() => setShowAnalytics(false)}
-            className={!showAnalytics ? "bg-emerald-600" : "border-slate-600"}
+            className={!showAnalytics ? "bg-emerald-600 text-white" : "bg-slate-800 border-slate-600 text-white hover:bg-slate-700"}
           >
             <Trophy className="h-4 w-4 mr-2" />
             Leaderboard
@@ -123,7 +123,7 @@ export default function LeaderboardPage() {
           <Button
             variant={showAnalytics ? "default" : "outline"}
             onClick={() => setShowAnalytics(true)}
-            className={showAnalytics ? "bg-purple-600" : "border-slate-600"}
+            className={showAnalytics ? "bg-purple-600 text-white" : "bg-slate-800 border-slate-600 text-white hover:bg-slate-700"}
           >
             <BarChart3 className="h-4 w-4 mr-2" />
             Analytics
@@ -216,7 +216,7 @@ export default function LeaderboardPage() {
               <Button
                 variant="outline"
                 onClick={handleExport}
-                className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                className="bg-slate-800 border-slate-600 text-white hover:bg-slate-700 hover:text-white hover:border-slate-500"
               >
                 <Download className="h-4 w-4 mr-2" />
                 Export Research Data (CSV)
@@ -243,7 +243,7 @@ export default function LeaderboardPage() {
                   variant={selectedPersona === null ? "default" : "outline"}
                   size="sm"
                   onClick={() => setSelectedPersona(null)}
-                  className={selectedPersona === null ? "bg-emerald-600" : "border-slate-600"}
+                  className={selectedPersona === null ? "bg-emerald-600 text-white" : "bg-slate-800 border-slate-600 text-white hover:bg-slate-700"}
                 >
                   All
                 </Button>
@@ -253,7 +253,7 @@ export default function LeaderboardPage() {
                     variant={selectedPersona === id ? "default" : "outline"}
                     size="sm"
                     onClick={() => setSelectedPersona(id)}
-                    className={selectedPersona === id ? "bg-emerald-600" : "border-slate-600 text-slate-300"}
+                    className={selectedPersona === id ? "bg-emerald-600 text-white" : "bg-slate-800 border-slate-600 text-white hover:bg-slate-700"}
                   >
                     {persona.location}
                   </Button>
@@ -332,14 +332,22 @@ export default function LeaderboardPage() {
         >
           <Button
             variant="outline"
-            className="border-slate-600 text-slate-300 hover:bg-slate-700"
-            onClick={() => router.back()}
+            className="bg-slate-800 border-slate-600 text-white hover:bg-slate-700 hover:text-white hover:border-slate-500"
+            onClick={() => router.push("/")}
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
+            Home
           </Button>
           <Button
-            className="bg-emerald-600 hover:bg-emerald-700"
+            variant="outline"
+            className="bg-slate-800 border-slate-600 text-white hover:bg-slate-700 hover:text-white hover:border-slate-500"
+            onClick={() => router.push("/analytics")}
+          >
+            <BarChart3 className="h-4 w-4 mr-2" />
+            Full Analytics
+          </Button>
+          <Button
+            className="bg-emerald-600 hover:bg-emerald-700 text-white"
             onClick={() => router.push("/setup")}
           >
             Play Game

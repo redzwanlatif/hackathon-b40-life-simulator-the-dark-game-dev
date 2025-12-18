@@ -60,6 +60,8 @@ export default function GamePage() {
   const eatAtRestaurant = useMutation(api.games.eatAtRestaurant);
   const generateScenario = useAction(api.ai.generateScenario);
   const updateLiveScore = useMutation(api.leaderboard.updateLiveScore);
+  const syncWeeklyProgress = useAction(api.tidbSync.syncWeeklyProgress);
+  const syncCompletedGame = useAction(api.tidbSync.syncCompletedGame);
 
   // Dialog states
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -129,28 +131,43 @@ export default function GamePage() {
     }
   }, [game, gameId, router, hasCheckedStorage]);
 
-  // Check for game over
+  // Check for game over and sync to TiDB
   useEffect(() => {
     if (game?.isGameOver && !showGameOver) {
       setShowGameOver(true);
-    }
-  }, [game?.isGameOver, showGameOver]);
 
-  // Check if we should show weekend dialog (Day 5 complete, objectives done)
-  useEffect(() => {
-    const energy = game?.energyRemaining ?? 11;
-    if (
-      game &&
-      game.currentDay === 5 &&
-      weekComplete?.complete &&
-      energy <= 0 &&
-      !showWeekendDialog &&
-      !showSpecialEvent &&
-      !dialogOpen
-    ) {
-      setShowWeekendDialog(true);
+      // Sync weekly progress first (in case game over happened mid-week)
+      syncWeeklyProgress({
+        gameId: game._id,
+        weekCompleted: game.currentWeek,
+        weekendActivity: "game_over",
+      })
+        .then((result) => {
+          if (result.success) {
+            console.log(`Week ${game.currentWeek} synced to TiDB (game over)`);
+          }
+        })
+        .catch((err) => {
+          console.warn("TiDB weekly sync error:", err);
+        });
+
+      // Sync completed game to TiDB (fire and forget)
+      syncCompletedGame({ gameId: game._id })
+        .then((result) => {
+          if (result.success) {
+            console.log("Completed game synced to TiDB");
+          } else {
+            console.warn("Failed to sync completed game:", result.error);
+          }
+        })
+        .catch((err) => {
+          console.warn("TiDB completed game sync error:", err);
+        });
     }
-  }, [game, weekComplete, showWeekendDialog, showSpecialEvent, dialogOpen]);
+  }, [game?._id, game?.isGameOver, game?.currentWeek, showGameOver, syncCompletedGame, syncWeeklyProgress]);
+
+  // REMOVED: Auto-weekend trigger - user must click "Next Day" or "Weekend Time" button
+  // Weekend dialog is now only shown via handleNextDay or the Weekend Time button
 
   // Get random event for current persona
   const getRandomEvent = useCallback((): SpecialEvent | null => {
@@ -212,6 +229,8 @@ export default function GamePage() {
     async (activity: WeekendActivity) => {
       if (!game) return;
 
+      const weekCompleted = game.currentWeek; // Capture the week being completed
+
       try {
         const result = await selectWeekendActivity({
           gameId: game._id,
@@ -223,6 +242,21 @@ export default function GamePage() {
 
         setShowWeekendDialog(false);
 
+        // Sync weekly progress to TiDB (fire and forget - don't block UI)
+        syncWeeklyProgress({
+          gameId: game._id,
+          weekCompleted: weekCompleted,
+          weekendActivity: activity.id,
+        }).then((syncResult) => {
+          if (syncResult.success) {
+            console.log(`Week ${weekCompleted} synced to TiDB successfully`);
+          } else {
+            console.warn(`Week ${weekCompleted} TiDB sync failed:`, syncResult.error);
+          }
+        }).catch((err) => {
+          console.warn("TiDB sync error (non-blocking):", err);
+        });
+
         if (result.isGameOver) {
           setShowGameOver(true);
         }
@@ -230,7 +264,7 @@ export default function GamePage() {
         console.error("Failed to process weekend activity:", error);
       }
     },
-    [game, selectWeekendActivity]
+    [game, selectWeekendActivity, syncWeeklyProgress]
   );
 
   // Check if location is a restaurant
@@ -265,22 +299,36 @@ export default function GamePage() {
       // Handle shop/grocery location - show choice dialog instead of auto-complete
       const objectives = game.weeklyObjectives ?? { boughtGroceries: false };
       if (locationId === "shop" && !objectives.boughtGroceries) {
-        // If not at shop, move there first (costs energy)
-        if (locationId !== game.currentLocation) {
-          try {
-            await moveToLocation({ gameId: game._id, location: locationId });
-          } catch (error) {
-            console.error("Failed to move to shop:", error);
+        // Always costs energy to interact (move or stay)
+        try {
+          const moveResult = await moveToLocation({ gameId: game._id, location: locationId });
+          if (moveResult.isGameOver) {
+            setShowGameOver(true);
             return;
           }
+        } catch (error) {
+          console.error("Failed to interact with shop:", error);
+          return;
         }
         // Show grocery dialog
         setShowGroceryDialog(true);
         return;
       }
 
-      // If clicking current location, trigger scenario without moving
+      // If clicking current location, still costs energy for interaction
       if (locationId === game.currentLocation) {
+        // Deduct energy for interacting with location (even if already there)
+        try {
+          const moveResult = await moveToLocation({ gameId: game._id, location: locationId });
+          if (moveResult.isGameOver) {
+            setShowGameOver(true);
+            return;
+          }
+        } catch (error) {
+          console.error("Failed to interact with location:", error);
+          return;
+        }
+
         // Still check if this location completes an objective (e.g., work at office)
         if (locationInfo?.objectiveType && locationInfo.objectiveType !== "groceries") {
           try {
@@ -702,7 +750,7 @@ export default function GamePage() {
                 disabled={isGenerating || isProcessing}
               >
                 <CreditCard className="w-4 h-4 mr-2" />
-                Pay Debt (RM{Math.ceil(game.debt / 4)})
+                Pay Debt (RM{Math.max(200, Math.ceil(game.debt * 0.05))})
               </Button>
             )}
 
